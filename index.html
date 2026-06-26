@@ -32,6 +32,9 @@ body{background:#070808;color:var(--fg);font:400 12px/16px 'Inter',system-ui,san
 .filters button{height:22px;padding:0 9px;background:transparent;border:1px solid transparent;border-radius:var(--radius);color:var(--t56);cursor:pointer;font:inherit}
 .filters button:hover{color:var(--fg);background:var(--b8)}
 .filters button.on{color:var(--fg);background:var(--b8);border-color:var(--b16)}
+.filters .cnt{margin-left:5px;color:var(--t48);font-variant-numeric:tabular-nums}
+.filters button.on .cnt{color:var(--t72)}
+.filters .cnt:empty{display:none}
 .main{flex:1;display:flex;flex-direction:column;min-height:0;position:relative}
 .cname.ph{color:var(--t48)}
 /* подсказка живёт В ЛЕВОЙ панели списка команд; низ левого (код) и правый current остаются как есть */
@@ -130,6 +133,13 @@ body{background:#070808;color:var(--fg);font:400 12px/16px 'Inter',system-ui,san
 .split:hover{background:var(--b12)}
 .foot{display:flex;align-items:center;gap:10px;height:42px;padding:0 12px;border-top:1px solid var(--b12)}
 .counts{color:var(--t56);font-size:11px}
+.legend{display:flex;align-items:center;gap:14px}
+.legend .lg{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.legend .sw{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+.legend .sw.r{background:var(--r)}
+.legend .sw.g{background:var(--grn)}
+.legend .sw.b{background:var(--blu)}
+.legend .sw.y{background:var(--ylw)}
 .btns{margin-left:auto;display:flex;gap:8px}
 .btn{height:24px;padding:0 14px;border-radius:var(--radius);border:1px solid var(--b16);background:var(--b4);color:var(--t72);cursor:pointer;font:inherit}
 .btn:hover{background:var(--b12);color:var(--fg)}
@@ -147,9 +157,9 @@ body{background:#070808;color:var(--fg);font:400 12px/16px 'Inter',system-ui,san
     <span class="tab" data-tab="sub">Sub</span>
     <span class="tab" data-tab="obj">Objects</span>
     <span class="filters" id="filters">
-      <button data-f="all" class="on">All</button>
-      <button data-f="diff">Different</button>
-      <button data-f="new">New</button>
+      <button data-f="all" class="on">All<span class="cnt" id="cAll"></span></button>
+      <button data-f="diff">Different<span class="cnt" id="cDiff"></span></button>
+      <button data-f="new">New<span class="cnt" id="cNew"></span></button>
     </span>
   </div>
   <div class="main" id="mainArea">
@@ -258,13 +268,24 @@ function renderList(){
   $('listL').innerHTML=hasImport()?L:'<div class="lhint"><div class="et">No postprocessor selected</div><div class="es">Pick a postprocessor above, or import a .sppx file to compare it with your current one.</div><button class="eb" id="emptyImport">Import from computer</button></div>';
   $('listG').innerHTML=G; $('listR').innerHTML=R;
 }
+var LEGEND='<span class="legend">'
+  +'<span class="lg"><span class="sw r"></span>Differs</span>'
+  +'<span class="lg"><span class="sw g"></span>Only in one</span>'
+  +'<span class="lg"><span class="sw b"></span>Merged</span>'
+  +'<span class="lg"><span class="sw y"></span>Edited</span>'
+  +'</span>';
 function renderCounts(){
-  if(!hasImport()){ var n=items().length; $('counts').textContent=n?n+' commands in current':''; return; }
   var a=items();
+  $('cAll').textContent=a.length?a.length:'';
+  if(!hasImport()){
+    $('cDiff').textContent=''; $('cNew').textContent='';
+    $('counts').innerHTML=a.length?a.length+' commands in current':'';
+    return;
+  }
   var diff=a.filter(function(e){var s=status(e);return s==='diff'||s==='edited'||s==='partial';}).length;
   var nw=a.filter(function(e){return status(e)==='add';}).length;
-  var mg=a.filter(function(e){var s=status(e);return s==='merged'||s==='ident';}).length;
-  $('counts').textContent=diff+' different · '+nw+' to add · '+mg+' merged';
+  $('cDiff').textContent=diff; $('cNew').textContent=nw;
+  $('counts').innerHTML=LEGEND;
 }
 function abtn(i,t){ return '<button class="gbtn" data-i="'+i+'" title="'+t+'"><i class="ti ti-arrow-right"></i></button>'; }
 // какие именно строки в current правились руками (сравнение с base — снимком до первой ручной правки)
