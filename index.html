@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ENCY — Import / Merge postprocessor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
+<style>
+:root{
+  --bg:#0e1010; --panel:#303439; --inset:#1e2028; --fg:#f5f5f5; --g:#00a36d; --r:#ff6b6b; --rdim:rgba(255,107,107,.5); --grn:#3fcf8e; --ylw:#e3b341; --blu:#5aa9ff;
+  --t80:rgba(245,245,245,.8); --t72:rgba(245,245,245,.72); --t56:rgba(245,245,245,.56); --t48:rgba(245,245,245,.48);
+  --b24:rgba(245,245,245,.24); --b20:rgba(245,245,245,.2); --b16:rgba(245,245,245,.16);
+  --b12:rgba(245,245,245,.12); --b8:rgba(245,245,245,.08); --b4:rgba(245,245,245,.04);
+  --cols: minmax(0,1fr) 56px minmax(0,1fr);
+  --radius:4px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:#070808;color:var(--fg);font:400 12px/16px 'Inter',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;padding:24px;-webkit-font-smoothing:antialiased}
+.app{width:100%;max-width:1120px;height:780px;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--b24);border-radius:6px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.bar{display:flex;align-items:center;height:32px;padding:0 6px 0 10px;border-bottom:1px solid var(--b12);color:var(--t72);user-select:none}
+.bar .wc{margin-left:auto;display:flex}
+.bar .wc i{width:34px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--t56);font-size:15px}
+.bar .wc i:hover{background:var(--b8);color:var(--fg)}
+.tabsrow{display:flex;align-items:center;height:32px;padding:0 10px;border-bottom:1px solid var(--b12);gap:16px}
+.tab{height:32px;display:flex;align-items:center;color:var(--t72);cursor:pointer;border-bottom:2px solid transparent}
+.tab:hover{color:var(--fg)}
+.tab.on{color:var(--fg);font-weight:600;border-bottom-color:var(--fg)}
+.filters{margin-left:auto;display:flex;gap:2px}
+.filters button{height:22px;padding:0 9px;background:transparent;border:1px solid transparent;border-radius:var(--radius);color:var(--t56);cursor:pointer;font:inherit}
+.filters button:hover{color:var(--fg);background:var(--b8)}
+.filters button.on{color:var(--fg);background:var(--b8);border-color:var(--b16)}
+.main{flex:1;display:flex;flex-direction:column;min-height:0}
+.cname.ph{color:var(--t48)}
+.empty{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:24px;color:var(--t48)}
+#mainArea.no-post #listZone,#mainArea.no-post #split,#mainArea.no-post #codeZone{display:none}
+#mainArea.no-post .empty{display:flex}
+.empty .ei{font-size:30px;color:var(--b24);margin-bottom:2px}
+.empty .et{font-size:13px;color:var(--t72)}
+.empty .es{font-size:12px;max-width:330px;line-height:16px}
+.empty .eb{margin-top:8px;height:26px;padding:0 12px;display:inline-flex;align-items:center;gap:6px;background:var(--b4);border:1px solid var(--b16);border-radius:var(--radius);color:var(--t80);cursor:pointer;font:inherit}
+.empty .eb:hover{background:var(--b12);color:var(--fg)}
+.empty .eb i{font-size:14px}
+.hdr{display:grid;grid-template-columns:var(--cols);border-bottom:1px solid var(--b12);height:32px;flex-shrink:0}
+.hc.left{position:relative}
+#impBtn{display:flex;align-items:center;justify-content:center;padding:4px;border:0;background:transparent;color:var(--t56);cursor:pointer;border-radius:var(--radius);font-size:15px}
+#impBtn:hover{background:var(--b8);color:var(--fg)}
+.combo{display:flex;align-items:center;gap:6px;flex:1;min-width:0;cursor:pointer;padding:3px 6px;border-radius:var(--radius)}
+.combo:hover{background:var(--b8)}
+.cpath{color:var(--t48);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex-shrink:1}
+.cname{color:var(--t80);white-space:nowrap;flex-shrink:0}
+.combo .ti-chevron-down{color:var(--t56);font-size:13px;flex-shrink:0}
+.cmenu{position:absolute;z-index:20;background:#363b42;border:1px solid var(--b16);border-radius:6px;box-shadow:0 14px 36px rgba(0,0,0,.55);padding:4px;display:flex;flex-direction:column;gap:2px}
+.cmenu[hidden]{display:none}
+.cmenu .opt{display:flex;flex-direction:column;gap:1px;padding:5px 10px;border-radius:var(--radius);cursor:pointer}
+.cmenu .opt:hover,.cmenu .opt.sel{background:var(--b8)}
+.cmenu .oname{color:var(--t80)}
+.cmenu .opath{color:var(--t48);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hc{display:flex;align-items:center;gap:8px;padding:4px 10px;color:var(--t56);font-size:11px;min-width:0}
+.hc.mid{justify-content:center;padding:0;border-left:1px solid var(--b12);border-right:1px solid var(--b12)}
+#mergeAll{width:100%;height:100%;border:0;background:transparent;color:var(--t56);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px}
+#mergeAll:hover{background:var(--b8);color:var(--fg)}
+.hlbl{white-space:nowrap}
+.fld{flex:1;min-width:0;height:26px;display:flex;align-items:center;padding:0 8px;background:var(--b4);border:1px solid var(--b16);border-radius:var(--radius);color:var(--t72);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pick{height:26px;width:28px;display:flex;align-items:center;justify-content:center;background:var(--b4);border:1px solid var(--b16);border-radius:var(--radius);color:var(--t72);cursor:pointer}
+.pick:hover{background:var(--b12)}
+
+/* zones = 3 synced panes (left | gutter | right) */
+.zone{display:grid;grid-template-columns:var(--cols);min-height:0;background:var(--inset)}
+#listZone{flex:1 1 auto}
+#codeZone{flex:0 0 auto;height:260px;font:400 11px/17px 'JetBrains Mono',monospace;grid-template-columns:16px var(--cols) 16px}
+.mmap{position:relative;overflow:hidden;border-right:1px solid var(--b12);cursor:pointer;background:var(--b4)}
+.mtick{position:absolute;left:2px;right:2px;border-radius:1px}
+.mtick.r{background:rgba(255,107,107,.4)}
+.mtick.b{background:rgba(90,169,255,.42)}
+.mtick.y{background:rgba(227,179,65,.42)}
+.mview{position:absolute;left:0;right:0;background:rgba(245,245,245,.06);border-top:1px solid var(--b16);border-bottom:1px solid var(--b16);pointer-events:none}
+.pane{min-width:0}
+.lpane{overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable}
+.rpane{overflow-y:auto;scrollbar-gutter:stable}
+#listZone .rpane{overflow-x:hidden}
+#codeZone .lpane,#codeZone .rpane{overflow:auto;scrollbar-gutter:stable}
+.gpane{overflow-y:scroll;overflow-x:hidden;border-left:1px solid var(--b12);border-right:1px solid var(--b12);scrollbar-width:none}
+.gpane::-webkit-scrollbar{display:none}
+
+/* list rows */
+#listZone .row{height:22px;display:flex;align-items:center;gap:8px;padding:0 10px;white-space:nowrap;overflow:hidden}
+#listZone .lpane .row,#listZone .rpane .row{cursor:pointer}
+#listZone .lpane .row:hover,#listZone .rpane .row:hover{background:var(--b4)}
+#listZone .row.sel{background:var(--b8)}
+#listZone .gpane .row{padding:0;display:flex;align-items:center;justify-content:center;gap:3px;position:relative}
+.lmk{display:inline-flex;align-items:center;justify-content:center;color:var(--blu);font-size:13px}
+.cb{width:14px;height:14px;flex-shrink:0;border:1px solid var(--b24);border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--bg);background:transparent}
+.cb.ck{background:var(--t72);border-color:var(--t72)}
+.nm{overflow:hidden;text-overflow:ellipsis;color:var(--t80)}
+.nm.d{color:var(--r)}
+.nm.n{color:var(--grn)}
+.nm.y{color:var(--ylw)}
+.ladd{margin-left:auto;color:var(--t56);font-size:13px;flex-shrink:0}
+
+/* code rows */
+#codeZone .row{height:18px;line-height:18px;padding:0 10px;white-space:pre}
+#codeZone .lpane .row{color:var(--t72);-webkit-user-select:text;user-select:text}
+#codeZone .rpane .row{color:var(--t72);outline:none}
+#codeZone .rpane .row:focus{background:var(--b4)}
+#codeZone .gpane .row{padding:0;display:flex;align-items:center;justify-content:center;gap:3px;position:relative}
+.ed{position:absolute;top:0;bottom:1px;width:3px;background:var(--r)}
+.ed.l{left:0}
+.ed.r{right:0}
+.ed.n{background:var(--grn)}
+.ed.m{background:var(--blu)}
+.ed.y{background:var(--ylw)}
+.row.diffline{background:var(--b8)}
+.row.mergedline{background:rgba(90,169,255,.12)}
+.ch{background:rgba(255,107,107,.5);border-radius:2px;box-shadow:0 0 0 1px rgba(255,107,107,.9)}
+.ch.y{background:rgba(227,179,65,.55);color:#1a1505;border-radius:2px;box-shadow:0 0 0 1px rgba(227,179,65,.95)}
+.row.gap{background:var(--b4)}
+.row.gap.del{background:rgba(227,179,65,.07)}
+.codeplace{padding:16px;color:var(--t48);font-family:'Inter';display:flex;gap:8px}
+
+.th{position:absolute;top:50%;height:1px;background:var(--b20)}
+.th.full{left:0;right:0}
+.th.toL{left:0;right:50%}
+.th.toR{left:50%;right:0}
+.mk{position:relative;z-index:1;display:inline-flex;align-items:center;justify-content:center;background:var(--bg);color:var(--t72);font-size:13px;padding:0 3px}
+.gbtn{width:calc(100% - 14px);height:16px;display:flex;align-items:center;justify-content:center;border:0;border-radius:var(--radius);background:transparent;color:var(--t72);cursor:pointer;font-size:13px;position:relative;z-index:1}
+.gbtn:hover{background:var(--b8);color:var(--fg)}
+
+.split{height:7px;flex-shrink:0;cursor:row-resize;background:var(--b8);border-top:1px solid var(--b12);border-bottom:1px solid var(--b12);display:flex;align-items:center;justify-content:center}
+.split::after{content:"";width:34px;height:2px;border-radius:2px;background:var(--b24)}
+.split:hover{background:var(--b12)}
+.foot{display:flex;align-items:center;gap:10px;height:42px;padding:0 12px;border-top:1px solid var(--b12)}
+.counts{color:var(--t56);font-size:11px}
+.btns{margin-left:auto;display:flex;gap:8px}
+.btn{height:24px;padding:0 14px;border-radius:var(--radius);border:1px solid var(--b16);background:var(--b4);color:var(--t72);cursor:pointer;font:inherit}
+.btn:hover{background:var(--b12);color:var(--fg)}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--b16);border-radius:6px;border:2px solid var(--bg)}
+::-webkit-scrollbar-thumb:hover{background:var(--b24)}
+::-webkit-scrollbar-corner{background:transparent}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="bar"><span id="winTitle">Import commands</span><span class="wc"><i class="ti ti-minus"></i><i class="ti ti-square"></i><i class="ti ti-x"></i></span></div>
+  <div class="tabsrow" id="tabs">
+    <span class="tab on" data-tab="cmd">Cmd</span>
+    <span class="tab" data-tab="sub">Sub</span>
+    <span class="tab" data-tab="obj">Objects</span>
+    <span class="filters" id="filters">
+      <button data-f="all" class="on">All</button>
+      <button data-f="diff">Different</button>
+      <button data-f="new">New</button>
+    </span>
+  </div>
+  <div class="main" id="mainArea">
+    <div class="hdr">
+      <div class="hc left">
+        <div class="combo" id="postCombo"><span class="cpath" id="postPath"></span><span class="cname ph" id="impName">Select a postprocessor…</span><i class="ti ti-chevron-down"></i></div>
+        <button id="impBtn" title="Import postprocessor from computer…"><i class="ti ti-dots"></i></button>
+        <input type="file" id="impFile" accept=".sppx,.xml" hidden>
+        <div class="cmenu" id="postMenu" hidden></div>
+      </div>
+      <div class="hc mid"><button id="mergeAll" title="Merge all to current"><i class="ti ti-chevrons-right"></i></button></div>
+      <div class="hc right">To Current</div>
+    </div>
+    <div class="empty" id="emptyState">
+      <i class="ti ti-arrows-diff ei"></i>
+      <div class="et">No postprocessor selected</div>
+      <div class="es">Pick a postprocessor in the header above, or import a .sppx file to compare its commands with your current one.</div>
+      <button class="eb" id="emptyImport"><i class="ti ti-dots"></i> Import from computer…</button>
+    </div>
+    <div class="zone" id="listZone">
+      <div class="pane lpane" id="listL"></div>
+      <div class="pane gpane" id="listG"></div>
+      <div class="pane rpane" id="listR"></div>
+    </div>
+    <div class="split" id="split"></div>
+    <div class="zone" id="codeZone">
+      <div class="mmap" id="codeMap"></div>
+      <div class="pane lpane" id="codeL"></div>
+      <div class="pane gpane" id="codeG"></div>
+      <div class="pane rpane" id="codeR"></div>
+    </div>
+  </div>
+  <div class="foot">
+    <span class="counts" id="counts"></span>
+    <span class="btns"><button class="btn">Cancel</button><button class="btn" id="okBtn">OK</button></span>
+  </div>
+</div>
+<script>
+var DATA={"cmd":[{"name":"AbsMov","source":["program AbsMov","  if interp_=1 and G641_on_off = 1 then begin","    BlockN = BlockN + BlockStep","    output \"N\"+str(blockN)+\" G641 ADIS=\" + str(tolerance_look_ahead)","    G641_on_off = 10","  end","  call CheckAxesBrake(2, 2, 2)","","  if CycleOn = 0  or Cycle_pocket = 1 then begin    !Drugoj vyvod dlya sverlilnyx cziklov poziczij otverstij","    if (INTERP_ > 1) and (INTERP_ < 4) then INTERP_ = 1","    if PolarInterp = 1 then begin","      X = (cld[1]*csC - cld[2]*snC)","      Y = (cld[2]*csC + cld[1]*snC)","    end else begin","      X = cld[1]                      ! X,Y,Z in absolutes","      Y = cld[2]","    end;","    Z = cld[3]","    if (X<>X@) or (Y<>Y@) or (Z<>Z@) then","     OutBlock                     ! output in block NC programm","    XT_ = X;  YT_ = Y;  ZT_ = Z    ! current coordinates","  end","  XT_ = cld[1] ; YT_ = cld[2] ; ZT_ = cld[3]   !Zapominaem koordinaty otvertsij","  Cycle_pocket = 0  ! Vyklyuchaem metku dlya czikla poketov   ","end"],"current":["program AbsMov","  if interp_=2 and G641_on_off = 1 then begin","    BlockN = BlockN + BlockStep","    output \"N\"+str(blockN)+\" G641 ADIS=\" + str(tolerance_look_ahead)","  end","  call CheckAxesBrake(2, 2, 2)","","  if CycleOn = 0  or Cycle_pocket = 1 then begin    !Drugoj vyvod dlya sverlilnyx cziklov poziczij otverstij","    if (INTERP_ > 1) and (INTERP_ < 4) then INTERP_ = 1","    if PolarInterp = 1 then begin","      X = (cld[1]*csC - cld[2]*snC)","      Y = (cld[2]*csC + cld[1]*snC)","    end else begin","      X = cld[1]                      ! X,Y,Z in absolutes","      Y = cld[2]","    end;","    Z = cld[3]","    if (X<>X@) or (Y<>Y@) or (Z<>Z@) then","     OutBlock                     ! output in block NC programm","    XT_ = X;  YT_ = Y;  ZT_ = Z    ! current coordinates","  end","  XT_ = cld[1] ; YT_ = cld[2] ; ZT_ = cld[3]   !Zapominaem koordinaty otvertsij","  Cycle_pocket = 0  ! Vyklyuchaem metku dlya czikla poketov   ","end"]},{"name":"AxesBrake","source":["program AxesBrake","  ABrake: Integer","  BBrake: Integer","  CBrake: Integer","","  ABrake = -1","  BBrake = -1","  CBrake = -1","  if Cmd.Ptr[\"Axes(AxisAPos)\"]<>0 then begin","    ABrake = Cmd.Int[\"Axes(AxisAPos).BrakeState\"]","  end","  if Cmd.Ptr[\"Axes(AxisBPos)\"]<>0 then begin","    BBrake = Cmd.Int[\"Axes(AxisBPos).BrakeState\"]","  end","  if Cmd.Ptr[\"Axes(AxisCPos)\"]<>0 then begin","    CBrake = Cmd.Int[\"Axes(AxisCPos).BrakeState\"]","  end","  call CheckAxesBrake(ABrake, BBrake, CBrake)","end"],"current":["program AxesBrake","  ABrake: Integer","  BBrake: Integer","  CBrake: Integer","","  ABrake = -1","  BBrake = -1","  CBrake = -1","  if Cmd.Ptr[\"Axes(AxisAPos)\"]<>0 then begin","    ABrake = Cmd.Int[\"Axes(AxisAPos).BrakeState\"]","  end","  if Cmd.Ptr[\"Axes(AxisBPos)\"]<>0 then begin","    BBrake = Cmd.Int[\"Axes(AxisBPos).BrakeState\"]","  end","  if Cmd.Ptr[\"Axes(AxisCPos)\"]<>0 then begin","    CBrake = Cmd.Int[\"Axes(AxisCPos).BrakeState\"]","  end","  call CheckAxesBrake(ABrake, BBrake, CBrake)","end"]},{"name":"Circle","source":["program Circle","  if cld[4]*sgn(GPlane) > 0 then INTERP_ = 3","                            else INTERP_ = 2 ! G3/G2","  if PolarInterp = 1 then begin","    X = (cld[5]*csC - cld[6]*snC)","    Y = (cld[6]*csC + cld[5]*snC)","  end else begin","    X = cld[5]                              ! X,Y,Z in absolutes","    Y = cld[6]","  end;","","  X@=MaxReal ! X,Y,Z v absolyutax","  Y@=MaxReal","  Z = cld[7];      Z@=MaxReal","","  if (abs(GPlane)=17) and (ZT_=Z) then begin","    Z@=Z","  end else if (abs(GPlane)=18) and (YT_=Y) then begin","    Y@=Y","  end else if (abs(GPlane)=19) and (XT_=X) then begin","    X@=X","  end;","","  ! Esli spiral, to vyvodim Turn (kolichestvo oborotov) yavno","  if (abs(GPlane)=17) and (ZT_<>Z) then begin","    Turn = 0","    Turn@ = MaxReal","    if (XT_=X) and (YT_=Y) then","      Turn = 1  ! polnyj oborot","  end else if (abs(GPlane)=18) and (YT_<>Y) then begin","    Turn = 0","    Turn@ = MaxReal","    if (XT_=X) and (ZT_=Z) then","      Turn = 1  ! polnyj oborot","  end else if (abs(GPlane)=19) and (XT_<>X) then begin","    Turn = 0","    Turn@ = MaxReal","    if (YT_=Y) and (ZT_=Z) then","      Turn = 1  ! polnyj oborot","  end;","","  if Abs(GPlane)<>19 then begin","    if PolarInterp = 1 then begin","      XC_ = (cld[1]*csC - cld[2]*snC)","    end else begin","      XC_ = cld[1]","    end;","    XC_@ = MaxReal","  end","  if Abs(GPlane)<>18 then begin","    if PolarInterp = 1 then begin","      YC_ = (cld[2]*csC + cld[1]*snC)","    end else begin","      YC_ = cld[2]","    end;","    YC_@ = MaxReal","  end","  if Abs(GPlane)<>17 then begin","    ZC_ = cld[3]","    ZC_@ = MaxReal","  end","","  OutBlock","  XT_ = X ! current coordinates","  YT_ = Y","  ZT_ = Z","end"],"current":["program Circle","  if cld[4]*sgn(GPlane) > 0 then INTERP_ = 4","                            else INTERP_ = 2 ! G3/G2","  if PolarInterp = 1 then begin","    Y = (cld[6]*csC + cld[5]*snC)","  end else begin","    X = cld[5]                              ! X,Y,Z in absolutes","    Y = cld[6]","  end;","","  X@=MaxReal ! X,Y,Z v absolyutax","  Y@=MaxReal","  Z = cld[7];      Z@=MaxReal","","  if (abs(GPlane)=17) and (ZT_=Z) then begin","    Z@=Z","  end else if (abs(GPlane)=18) and (YT_=Y) then begin","    Y@=Y","  end else if (abs(GPlane)=19) and (XT_=X) then begin","    X@=X","  end;","","  ! Esli spiral, to vyvodim Turn (kolichestvo oborotov) yavno","  if (abs(GPlane)=17) and (ZT_<>Z) then begin","    Turn = 0","    Turn@ = MaxReal","    if (XT_=X) and (YT_=Y) then","      Turn = 1  ! polnyj oborot","  end else if (abs(GPlane)=18) and (YT_<>Y) then begin","    Turn = 0","    Turn@ = MaxReal","    if (XT_=X) and (ZT_=Z) then","      Turn = 1  ! polnyj oborot","  end else if (abs(GPlane)=19) and (XT_<>X) then begin","    Turn = 0","    Turn@ = MaxReal","    if (YT_=Y) and (ZT_=Z) then","      Turn = 1  ! polnyj oborot","  end;","","  if Abs(GPlane)<>19 then begin","    if PolarInterp = 1 then begin","      XC_ = (cld[1]*csC - cld[2]*snC)","    end else begin","      XC_ = cld[1]","    end;","    XC_@ = MaxReal","  end","  if Abs(GPlane)<>18 then begin","    if PolarInterp = 1 then begin","      YC_ = (cld[2]*csC + cld[1]*snC)","    end else begin","      YC_ = cld[2]","    end;","    YC_@ = MaxReal","  end","  if Abs(GPlane)<>17 then begin","    ZC_ = cld[3]","    ZC_@ = MaxReal","  end","","  OutBlock","  XT_ = X ! current coordinates","  YT_ = Y","  ZT_ = Z","end"]},{"name":"Comment","source":["program Comment","  cs$ = CLDATA$","  if (pos(\"@\", cs$)<1) and","     ((CLDCounter>1) or CldFile[CldFile.CurrentFile].IsNCSub<>1) and","     (cs$<>\"\")","  then begin","    Output \";\" + cs$","  end","end"],"current":["program Comment","  cs$ = CLDATA$","  if (pos(\"@\", cs$)<1) and","     ((CLDCounter>1) or CldFile[CldFile.CurrentFile].IsNCSub<>1) and","     (cs$<>\"\")","  then begin","    Output \";\" + cs$","  end","end"]},{"name":"Common","source":["program Common","  MaxReal: Real","  XT_: Real                ! Tekushhee znachenie po X","  YT_: Real                ! Tekushhee znachenie po Y","  ZT_: Real                ! Tekushhee znachenie po Z","  FromX_: Real             ! Point FROM","  FromY_: Real","  FromZ_: Real","  CycleOn: Real            ! Vklyuchen li czikl","  IsFirstCycle: Real       ! 1 - esli eto pervyj czikl v operaczii, inache - 0","  Plane_: Integer          ! Peremennaya aktivnoj ploskosti iz LOADTL","  PolarInterp: Integer     ! Polyarnaya interpolyacziya: 0-vyklyuchena, 1-vklyuchena","  CylindInterp: Integer    ! CZilindricheskaya interpolyacziya: 0-vyklyuchena, >0-vklyuchena","  Prms: array of Real      ! Cycle parameters","  MainNCFile: String       ! Imya osnovnogo fajla UP","  MainNCPath: String       ! Papka osnovnogo fajla UP","  NCFileExt: String        ! Rasshirenie imeni fajla UP","  CurNCFile: String        ! Imya tekushhego fajla UP","  HeaderPath: String       ! Put v zagolovke ;$PATH=...","  ExcitedAxABrake: Integer ! 0-need't output, 1-need output","  ExcitedAxBBrake: Integer ! 0-need't output, 1-need output","  ExcitedAxCBrake: Integer ! 0-need't output, 1-need output","  DAM: Real","  VARI: Real","  VRT: Real","  csC : Real;","  snC : Real;","  WasCycle800: Integer     ! 1 - was Cycle800, 0 - there was no Cycle800","  CSOnCount: Integer       ! Count of G54","  type_op : string         ! \"roughing\" or \"2dcontouring\"","  G641_on_off: integer     ! G641 ADIS=0.2  -it's LOOK AHEAD, 0.2-accuracy","  tolerance_look_ahead: real        ! 0.2-tolerance","  !For Cycle","  Cyclecompare: string ; Cyclecompare = \"\"    ! Sravnivaem stroki dlya togo, chtoby znat nuzhno li vyvodit czikl","  Cycle_pocket: Real","end"],"current":["program Common","  MaxReal: Real","  XT_: Real                ! Tekushhee znachenie po X","  YT_: Real                ! Tekushhee znachenie po Y","  FromX_: Real             ! Point FROM","  FromY_: Real","  FromZ_: Real","  CycleOn: Real            ! Vklyuchen li czikl","  IsFirstCycle: Real       ! 1 - esli eto pervyj czikl v operaczii, inache - 0","  Plane_: Integer          ! Peremennaya aktivnoj ploskosti iz LOADTL","  PolarInterp: Integer     ! Polyarnaya interpolyacziya: 0-vyklyuchena, 1-vklyuchena","  CylindInterp: Integer    ! CZilindricheskaya interpolyacziya: 0-vyklyuchena, >0-vklyuchena","  Prms: array of Real      ! Cycle parameters","  MainNCFile: String       ! Imya osnovnogo fajla UP","  MainNCPath: String       ! Papka osnovnogo fajla UP","  NCFileExt: String        ! Rasshirenie imeni fajla UP","  CurNCFile: String        ! Imya tekushhego fajla UP","  HeaderPath: String       ! Put v zagolovke ;$PATH=...","  ExcitedAxABrake: Integer ! 0-need't output, 1-need output","  ExcitedAxBBrake: Integer ! 0-need't output, 1-need output","  ExcitedAxCBrake: Integer ! 0-need't output, 1-need output","  DAM: Real","  VARI: Real","  VRT: Real","  csC : Real;","  snC : Real;","  WasCycle800: Integer     ! 1 - was Cycle800, 0 - there was no Cycle800","  CSOnCount: Integer       ! Count of G54","  type_op : string         ! \"roughing\" or \"2dcontouring\"","  G641_on_off: integer     ! G641 ADIS=1.2  -it's LOOK AHEAD, 0.2-accuracy","  tolerance_look_ahead: real        ! 0.2-tolerance","  !For Cycle","  Cyclecompare: string ; Cyclecompare = \"\"    ! Sravnivaem stroki dlya togo, chtoby znat nuzhno li vyvodit czikl","  Cycle_pocket: Real","end"]},{"name":"CoolNt","source":["program CoolNt","  if cld[1] = 71 then","    if cld[2] = 1 then","      Mc = 8 ! zhidkost","    else if cld[2] = 2 then","      Mc = 8 ! tuman","    else if cld[2] = 3 then","      Mc = 8 ! instrument","    else","      Mc = 8 ! chto-to eshhe","  else begin","    Mc = 9","    Mc@ = MaxReal","  end","end"],"current":["program CoolNt","  if cld[1] = 71 then","    if cld[2] = 1 then","      Mc = 8 ! zhidkost","    else if cld[2] = 2 then","      Mc = 8 ! tuman","    else if cld[2] = 3 then","      Mc = 8 ! instrument","    else","      Mc = 8 ! chto-to eshhe","  else begin","    Mc = 9","    Mc@ = MaxReal","  end","end"]},{"name":"CutCom","source":["program CutCom","  if cld[2]=23 then begin ! Radius","    if cld[1]=72 then begin ! Off","      KorEcv = 40","    end else begin          ! On","      if cld[10]=24 then KorEcv = 42","                    else KorEcv = 41","    end","  end else if cld[2]=9 then begin ! Length","    if cld[1]=71 then begin ! On","      DTool = abs(cld[3]); DTool@ = DTool!MaxReal","      !OutBlock","    end","  end","end"],"current":["program CutCom","  if cld[2]=25 then begin ! Radius","    if cld[1]=72 then begin ! Off","      KorEcv = 40","      if cld[10]=24 then KorEcv = 42","                    else KorEcv = 41","    end","  end else if cld[2]=9 then begin ! Length","    if cld[1]=71 then begin ! On","      DTool = abs(cld[3]); DTool@ = DTool!MaxReal","      !OutBlock","    end","  end","end"]},{"name":"Cycle","source":["program Cycle","  i: Integer","  !Prms: array of Real ! Cycle parameters","  KodCycle: Integer","  CycleNumber: Integer","  RTP: Real","  RFP: Real","  SDIS: Real","  DP: Real","  DPR: Real","  DTB: Real","  FDEP: Real","  FDRP: Real","  DTS: Real","  FRF: Real","  DTD: Real","  DIS1: Real","  PIT: Real","  MDEP: Real","","  if cld[1]=72 then begin ! Vyklyuchenie czikla","    CycleOn = 0","    IsFirstCycle = 1","  end else begin          ! Vyzov czikla","    call CheckAxesBrake(2, 2, 2)","    OutBlock","    CycleOn = 1                      ! czikl vklyuchen","    if cld[4] > 0 then begin         ! formirovanie znacheniya podachi","      if cld[3] = 316 then FEED_ = cld[4]*S else FEED_ = cld[4]","      if FEED_<>FEED_@ then OutBlock       ! Vyvod rabochej podachi dlya sverleniya","    end                                      ! pered opisaniem samogo CZIKLA","    if Mc<>Mc@ then OutBlock               ! Vyvod oxlazhdeniya pered cziklom","","    KodCycle = cld[1]","","    RTP = cld[8]          ! pl-t otvoda (absol)","    RFP = cld[11]         ! referentn pl-t (absol)","    SDIS = cld[5]-cld[11] ! bezopasnoe rastoyanie (inkr bez znaka)","    DP = cld[5]- cld[2]   ! nizhnij uroven otverstiya (absol)","    DPR = RFP-DP          ! Glubina otverstiya otn ref plosk (bez znaka)","    DTB = cld[10]         ! Pauza na glubine sverleniya","    FDEP = RFP-cld[6]     ! glubina odnogo shaga sverleniya abs","    FDRP = cld[6]         ! glubina odnogo shaga sverleniya","    DTS = cld[10]         ! Pauza udaleniya struzhki","    DTD = cld[10]         ! Pauza na dne","    PIT = cld[12]         ! SHag rezby","    if IsFirstCycle>0 then begin","      DAM = 0               ! degressiya (znachenie po umolchaniyu)","      FRF = 1               ! koefficzient podachi dlya pervoj glubiny (po umolchaniyu)","      VARI = 0              ! pereklyuchatel lomka/udalenie","      VRT = 2               ! Return pri lomke struzhki  (po umolchaniyu)","      DIS1 = 1              ! Nedoxod pri povtornyx pogruzheniyax (po umolchaniyu)","    end","    if KodCycle=153 then begin","      VARI = 1","      if IsFirstCycle>0 then begin","        Input \"Vvedite parametry czikla s udaleniem struzhki\",","              \"Degressiya (DAM)\", DAM,","              \"Koef. podachi dlya pervoj glubiny (FRF)\", FRF,","              \"Nedoxod pri povtornyx pogruzheniyax (DIS1)\", DIS1","      end","    end else if KodCycle=288 then begin","      VARI = 0","      if IsFirstCycle>0 then begin","        Input \"Vvedite parametry czikla s lomkoj struzhki\",","              \"Degressiya (DAM)\", DAM,","              \"Koef. podachi dlya pervoj glubiny (FRF)\", FRF,","              \"Nedoxod pri povtornyx pogruzheniyax (DIS1)\", DIS1,","              \"Return pri lomke struzhki\", VRT","      end","    end","    MDEP = abs(DAM) ! Minimalnaya glubina sverleniya","","    CycleNumber = 0","    for i = 1 to 30 do Prms[i] = MaxReal","    Prms[1] = RTP","    Prms[2] = RFP","    Prms[3] = SDIS","    Prms[4] = DP","    case KodCycle of","      163: begin","        CycleNumber = 81 ! DRILL","        Prms[5] = DPR","      end","      81: begin","        CycleNumber = 82 ! FACE","        Prms[6] = DTB","      end","      288: begin","        CycleNumber = 83 ! BRKCHP","        Prms[6] = FDEP","        Prms[8] = DAM","        Prms[9] = DTB","        Prms[11] = FRF","        Prms[12] = VARI","        !Prms[13] = AXN","        Prms[14] = MDEP","        Prms[15] = VRT","        Prms[16] = DTD","        Prms[17] = DIS1","      end","      153: begin","        CycleNumber = 83 ! DEEP","        Prms[6] = FDEP","        Prms[8] = DAM","        Prms[9] = DTB","        Prms[10] = DTS","        Prms[11] = FRF","        Prms[12] = VARI","        !Prms[13] = AXN","        Prms[14] = MDEP","        Prms[16] = DTD","        Prms[17] = DIS1","      end","      168: begin","        CycleNumber = 84 ! TAP","        Prms[7] = 3   !SDAC","        Prms[9] = PIT !PIT","        Prms[11] = S  !SST","        Prms[12] = S  !SST1","        Prms[13] = 3  !AXN","        Prms[14] = 1  !PTAB","        Prms[15] = 0  !TECHNO","        if IsFirstCycle>0 then begin","          VARI = 0","          DAM = cld[2]/5","          VRT = DAM/5","          Input \"Vvedite parametry czikla narezaniya rezby CYCLE84:\",","                \"Podtip czikla VARI (0-prostoe, 1-lomka struzhki, 2-udalenie struzhki)\", VARI,","                \"SHag dlya lomki struzhki (DAM)\", DAM,","                \"Return pri lomke struzhki (VRT)\", VRT","        end","        if VARI>0 then begin","          Prms[16] = VARI  !VARI","          Prms[17] = DAM  !DAM","          Prms[18] = VRT  !VRT","        end","      end","    end","    if CycleNumber>0 then begin","      call OutCycle(\"CYCLE\" + Str(CycleNumber), \"\")","      Interp_@ = MaxReal","    end","    IsFirstCycle = 0","  end","end"]},{"name":"Delay","source":["program Delay  ","  OutBlock","  GPause = 4; GPause@ = MaxReal","  FPause = cld[1]; FPause@ = MaxReal","  OutBlock","end"],"current":["program Delay  ","  OutBlock","  GPause = 4; GPause@ = MaxReal","  FPause = cld[1]; FPause@ = MaxReal","  OutBlock","end"]},{"name":"ExtCycle","source":["program ExtCycle  ","  !Prms: array of Real  ! Cycle parameters","  i: Integer","  CycleNumber: Integer ! Cycle number","  CycleName: String    ! Cycle name","  CycleGeomName: String ! Imya podprogrammy-geometrii czikla","  CDIR: Integer        ! Thread direction 2-G2, 3-G3","  SDIR: Real           ! Spindle rotation direction","  CurPos: Real         ! Current position (applicate)","  CPA: Real            ! Absciss","  CPO: Real            ! Ordinate","  TempCoord: Real      ! Auxiliary variable","  RTP: Real","  RFP: Real","  SDIS: Real","  DP: Real","  DPR: Real","","  if cld.SubCmd=71 then begin","    CycleOn = 1      ! ON","    if CLD[9]=1 then","      GFeed=94","    else","      GFeed=95","    Feed_=CLD[10]!; Feed_@=MaxReal","    outblock","  end","  else if cld.SubCmd=72 then CycleOn = 0 ! OFF","  else if cld.SubCmd=52 then begin ! CALL","    call CheckAxesBrake(2, 2, 2)","","    for i = 1 to 30 do Prms[i] = MaxReal","    CycleNumber = 0","    CycleName = \"CYCLE\"","    CycleGeomName = \"\"","    case cld.SubType of","      473,481,482,","      483,484,485,","      486,487,488,","      489,490,491: begin ! 5D Drilling cycles","        ! Define current position","        case abs(GPlane) of","          17: begin ! XY","            CurPos = Z","            CPA = X","            CPO = Y","          end","          18: begin ! ZX","            CurPos = Y","            CPA = Z","            CPO = X","          end","          19: begin ! YZ","            CurPos = X","            CPA = Y","            CPO = Z","          end","          else begin","            print \"Undefined cycle plane\"","            CurPos = Z","            CPA = X","            CPO = Y","          end","        end","        if GPlane<0 then begin","          TempCoord = CPA","          CPA = CPO","          CPO = TempCoord","        end","        ! Define base levels","        RTP = CurPos","        RFP = CurPos - cld[7]*sgn(GPlane) ! CurPos - Tp","        SDIS = cld[7] - cld[6] ! Tp - Sf","        DP = CurPos - cld[8]*sgn(GPlane) ! CurPos - Bt","        DPR = cld[8] - cld[7] ! Bt - Tp","        ! CycleXX(RTP,RFP,SDIS,DP)","        Prms[1] = RTP","        Prms[2] = RFP","        Prms[3] = SDIS","        Prms[4] = DP","        CycleNumber = 81","        case cld.SubType of","          481,482,485,486,487,488,489: begin ! Simple drilling","            CycleNumber = cld.SubType - 400","            if cld[15]>0 then Prms[6] = cld[15] ! Delay in seconds","            ! Spindle rotation direction","            if S>0 then SDIR = 3","                   else SDIR = 4","            if (cld.SubType=486) or (cld.SubType=488) then","              Prms[7] = SDIR","            else if cld.SubType=487 then","              Prms[6] = SDIR","            if cld.SubType=485 then begin","              Prms[7] = cld[10] ! WorkFeed","              Prms[8] = cld[14] ! ReturnFeed","            end else if cld.SubType=486 then begin","              Prms[8] = 0 ! RPA","              Prms[9] = 0 ! RPO","              Prms[10] = 0 ! RPAP","              Prms[11] = 0 ! POSS","            end","          end","          473,483: begin ! Deep drilling (473-chip breaking, 483-chip removing)","            CycleNumber = 83","            Prms[6] = CurPos - (cld[7]+cld[17])*sgn(GPlane) ! FDEP = CurPos-(Tp+St)","            Prms[8] = cld[18] ! DAM - degression","            Prms[9] = cld[15] ! DTB - Bottom delay","            Prms[10] = cld[16] ! DTS - Top delay","            Prms[11] = 1 ! FRF - First feed coef","            if cld.SubType=473 then Prms[12] = 0 ! VARI - breaking or removing","                               else Prms[12] = 1","            Prms[14] = CLD[18] ! _MDEP - Minimal deep step (=degression)","            if cld.SubType=473 then","              Prms[15] = cld[20] ! _VRT - LeadOut","            else","              Prms[17] = cld[19] ! _DIS1 - Deceleration","            Prms[16] = 0 ! _DTD - finish delay (if 0 then = DTB)","          end","          484: begin ! Tapping","            if S>0 then SDIR = 3","                   else SDIR = 4","            if cld[19]=1 then begin ! Fixed socket","              CycleNumber = 84","              Prms[7] = SDIR ! SDAC","              if S>0 then Prms[9] = cld[17] ! PIT","                     else Prms[9] = -cld[17]","              Prms[10] = cld[18] ! POSS","              Prms[14] = 1 !  PTAB","            end else begin  ! Floating socket","              CycleNumber = 840","              Prms[7] = 0 ! SDR","              Prms[8] = SDIR ! SDAC","              Prms[9] = 11 ! ENC","              if S>0 then Prms[11] = cld[17] ! PIT","                     else Prms[11] = -cld[17]","              Prms[13] = 1","            end","            if IsFirstCycle>0 then begin","              VARI = 0","              DAM = cld[2]/5","              VRT = DAM/5","              Input \"Vvedite parametry czikla narezaniya rezby CYCLE84:\",","                    \"Podtip czikla VARI (0-prostoe, 1-lomka struzhki, 2-udalenie struzhki)\", VARI,","                    \"SHag dlya lomki struzhki (DAM)\", DAM,","                    \"Return pri lomke struzhki (VRT)\", VRT","            end","            if VARI>0 then begin","              Prms[16] = VARI  !VARI","              Prms[17] = DAM  !DAM","              Prms[18] = VRT  !VRT","            end","          end","          490: begin ! Thread milling","            CycleNumber = 90","            Prms[6] = cld[16] ! DIATH - Outer diameter","            Prms[7] = cld[16] - cld[22]*2 ! KDIAM - Inner diameter","            Prms[8] = cld[17] ! PIT - thread step","            Prms[9] = cld[10] ! FFR - Work feed","            CDIR = cld[19] ! CDIR - Spiral direction","            if (CDIR<>2) and (CDIR<>3) then begin","              if (S>0) and (CDIR=0) then       CDIR = 3","              else if (S<=0) and (CDIR=0) then CDIR = 2","              else if (S>0) and (CDIR=1) then  CDIR = 2","              else if (S<=0) and (CDIR=1) then CDIR = 3","            end","            Prms[10] = CDIR","            Prms[11] = cld[18] ! TYPTH - 0-inner, 1-outer thread","            Prms[12] = CPA ! CPA - Center X","            Prms[13] = CPO ! CPO - Center Y","          end","          491: begin ! Hole pocketing","            CycleNumber = 4","            CycleName = \"POCKET\"","            Cycle_pocket = 1","            Prms[5] = 0.5*CLD[16] ! PRAD - Radius","            Prms[6] = CPA ! PA - Center X","            Prms[7] = CPO ! PO - Center Y","            Prms[8] = cld[20] ! MID - Deep step","            Prms[9] = 0 ! FAL - finish wall stock","            Prms[10] = 0 ! FALD - finish deep stock","            Prms[11] = cld[10] ! FFP1 - Work feed","            Prms[12] = cld[12] ! FFD - Plunge feed","            CDIR = cld[19]","            if CDIR<=1 then CDIR = 1 - CDIR","            Prms[13] = CDIR ! CDIR - Spiral direction","            Prms[14] = 21 ! VARI - Rough spiral machining","            Prms[15] = cld[22] ! MIDA - Horizontal step","            Prms[18] = 0.5*cld[18] ! RAD1 - Spiral radius","            Prms[19] = cld[17] ! DP1 - Spiral step","          end","        end","      end ! 5D Drilling cycles","    end ! case cld.SubType","    if CLD.SubType = 491 then begin !Dlya karmanov POCKET","      call OutCycle(CycleName+Str(CycleNumber), CycleGeomName)","      Interp_@ = MaxReal","    end  else begin  !Vyvod czikla MCALL dlya gruppy otverstij","      call OutCycle(\"MCALL\" + \" \" + CycleName+Str(CycleNumber), CycleGeomName)","      call Cycle_position  !Vyvod poziczij otverstij","    end","    IsFirstCycle = 0","  end ! if CALL","","  if CLD.SubCmd = 72 and CLD.SubType <> 491 then begin   !Vyklyuchenie czikla","    BlockN = BlockN + BlockStep ; output \"N\"+str(blockN)+\" MCALL\"","    IsFirstCycle = 1","    Cyclecompare = \"\" ! Prinuditelno stiraem, t.k. czikl zakryt","  end !Vyklyuchenie czikla","end"]},{"name":"Fedrat","source":["program Fedrat","  FEED_ = cld[1]","  if cld[3]=315 then GFeed=94","                else GFeed=95","  INTERP_ = 1   ! G1","end"],"current":["program Fedrat","  FEED_ = cld[1]","  if cld[3]=317 then GFeed=94","                else GFeed=95","end"]},{"name":"Fini","source":["program Fini","  call CheckAxesBrake(0, 0, 0)","  call CheckAxesBrake(2, 2, 2)","  OutBlock","  M = 30  ! M30 end programm","  M@ = MaxReal","  OutBlock","  NCSub.Output ! Vyvodim vse neottranslirovannye ranee podprogrammy","end"]},{"name":"From","source":["program From  ","  ! Koordinaty pervoj tochki prisvaivaem bez vyvoda","  X = cld[1]; X@ = X","  Y = cld[2]; Y@ = Y","  Z = cld[3]; Z@ = Z","  FROMX_= X","  FROMY_= Y","  FROMZ_= Z","  XT_ = X","  YT_ = Y","  ZT_ = Z","end"]},{"name":"GoHome","source":["program GoHome  ","  if CycleOn=1 then begin","    CycleOn = 0","    Cycle = 80","  end","  OutBlock","  call Cycle800SwitchOff","  if Cmd.Ptr[\"Axes(AxisXPos)\"]<>0 then begin","    X = Cmd.Flt[\"Axes(AxisXPos).Value\"]; X@ = MaxReal","  end","  if Cmd.Ptr[\"Axes(AxisYPos)\"]<>0 then begin","    Y = Cmd.Flt[\"Axes(AxisYPos).Value\"]; Y@ = MaxReal","  end","  if Cmd.Ptr[\"Axes(AxisZPos)\"]<>0 then begin","    Z = Cmd.Flt[\"Axes(AxisZPos).Value\"]; Z@ = MaxReal","  end","  if Cmd.Ptr[\"Axes(AxisAPos)\"]<>0 then begin","    A = Cmd.Flt[\"Axes(AxisAPos).Value\"]; A@ = MaxReal","  end","  if Cmd.Ptr[\"Axes(AxisBPos)\"]<>0 then begin","    B = Cmd.Flt[\"Axes(AxisBPos).Value\"]; B@ = MaxReal","  end","  if Cmd.Ptr[\"Axes(AxisCPos)\"]<>0 then begin","    C = Cmd.Flt[\"Axes(AxisCPos).Value\"]; C@ = MaxReal","  end","  !CoordSys = 500; CoordSys@ = MaxReal","  SUPA = 1; SUPA@ = 0","  Interp_ = 0; Interp_@ = MaxReal","  DTool = 0 ! Korrektor na dlinu","  OutBlock","  GPlane = MaxReal; GPlane@ = GPlane","end"]},{"name":"Insert","source":["program Insert  ","  Output CLData$","end"]},{"name":"Interpolation","source":["program Interpolation","  if cld[2]=9023 then begin ! MULTIAXIS interpolation","    if cld[1]=71 then begin ! Switch on","      OutBlock","      FormBlock; Output OutStr$ + \"TRAORI\"","      CoordSys@ = MaxReal; OutBlock","      FormBlock; Output OutStr$ + \"ORIWKS\"","      FormBlock; Output OutStr$ + \"ORIAXES\"","    end else begin          ! Switch off","      OutBlock","      FormBlock; Output OutStr$ + \"TRAFOOF\"","    end","  end else if cld[2]=9021 then begin ! Polar interpolation","    if cld[1]=71 then begin ! Switch on","      OutBlock","      Output \"TRANSMIT\"","      PolarInterp = 1","      csC = cos(A);","      snC = -sin(A);","    end else begin          ! Switch off","      OutBlock","      Output \"TRAFOOF\"","      PolarInterp = 0","      A = MaxReal; A@ = A","    end","  end else if cld[2]=9022 then begin ! Cylindrical interpolation","    if cld[1]=71 then begin ! Switch on","      OutBlock","      Output \"TRACYL(\" + Str(2*cld[3]) + \")\"","      !Output \"TRCON(\" + Str(2*cld[3]) + \")\"","      CylindInterp = cld[3]","    end else begin          ! Switch off","      OutBlock","      Output \"TRAFOOF\"","      !Output \"TMCOFF\"","      CylindInterp = 0","      A = MaxReal; A@ = A","    end;","  end","end"]},{"name":"LoadTl","source":["program LoadTl","  OldCoordSys: Integer","  OldCoordSys = CoordSys@; CoordSys@ = CoordSys","  Tool = cld[1]; Tool@ = MaxReal ! Nomer instrumenta","  DTool = abs(cld[6]); DTool@ = DTool ! Korrektor na dlinu","  FormBlock","  if CLDFile[CLDFile.CurrentFile].Cmd[CLDFile.CurrentCmd+1].Code=CodeOfCmd(\"Comment\") then begin","    OutStr$ = OutStr$ + \"; \" + CLDFile[CLDFile.CurrentFile].Cmd[CLDFile.CurrentCmd+1].Data","    Replace(OutStr$, \"@\", \"\")","  end","  Output OutStr$","  MTool = 6; MTool@ = 0","  OutBlock","  CoordSys@ = OldCoordSys","  !nt = NextToolNum","  !if (nt>0) and (nt<>Tool) then begin","  !  Output \"N\" + Str(BlockN) + \" G71 G90 T\" + Str(nt)  ! Metricheskaya sistema, absolyutnye koordinaty","  !end","  !OutBlock","","  call ConvertPlaneNumber(cld[14], Plane_)","","  FEED_@ = MaxReal;  FEED_ = FEED_@","  Interp_ = MAxReal; Interp_@=Interp_;","  S@ = MaxReal; S = S@","  X = MaxReal; X@ = X","  Y = MaxReal; Y@ = Y","  Z = MaxReal; Z@ = Z","  A = MaxReal; A@ = A","  B = MaxReal; B@ = B","  C = MaxReal; C@ = C","  GPlane = MaxReal; GPlane@ = GPlane","  CoordSys@ = MaxReal","end"]},{"name":"MultiGoto","source":["program MultiGoto","","  if interp_=1 and G641_on_off = 1 then begin","    BlockN = BlockN + BlockStep","    output \"N\"+str(blockN)+\" G641 ADIS=\" + str(tolerance_look_ahead)","    G641_on_off = 10","  end","","  call CheckAxesBrake(2, 2, 2)","","  if (Interp_<>0) and (Interp_<>1) then begin","    Interp_ = 1;","    Interp_@ = Interp_","  end","","  if GMA[\"AxisXPos\"].OutFlag>0 then begin","    X = GMA[\"AxisXPos\"].Vn","    XT_ = X","  end","  if GMA[\"AxisYPos\"].OutFlag>0 then begin","    Y = GMA[\"AxisYPos\"].Vn","    YT_ = Y","  end","  if GMA[\"AxisZPos\"].OutFlag>0 then begin","    Z = GMA[\"AxisZPos\"].Vn","    ZT_ = Z","  end","  if GMA[\"AxisAPos\"].OutFlag>0 then begin","    A = GMA[\"AxisAPos\"].Vn","  end","  if GMA[\"AxisBPos\"].OutFlag>0 then begin","    B = GMA[\"AxisBPos\"].Vn","  end","  if GMA[\"AxisCPos\"].OutFlag>0 then begin","    C = GMA[\"AxisCPos\"].Vn","    !call MakeAnglePositive(C)","  end","  if (X<>X@) or (Y<>Y@) or (Z<>Z@) or","     (A<>A@) or (B<>B@) or (C<>C@)","  then","    OutBlock","end"]},{"name":"OpStop","source":["program OpStop  ","  OutBlock","  M = 1      ! M01","  M@ = 0","  OutBlock","end"]},{"name":"Origin","source":["program Origin","  v_Dir, v_ST: Integer","  v_A, v_B, v_C: Real","","  if cld[4]=0 then begin ! Select standard workpiece CS","    CSOnCount = CSOnCount + 1","    CoordSys = cld[5]","    if CSOnCount>1 then begin","      CoordSys@ = CoordSys","      call Cycle800SwitchOff","    end","  end else if cld[4] = 1079 then begin ! Local CS activation (CYCLE800)","    OutBlock","","    if Cmd.Int[\"PositioningMode\"]>0 then begin ! Turn, Move","      if Cmd.Ptr[\"Axes(AxisBPos)\"]<>0 then begin","        if Cmd.Flt[\"Axes(AxisBPos).Value\"]>=0 then","          v_DIR = +1","        else","          v_DIR = -1","      end","      if Cmd.Ptr[\"Axes(AxisAPos)\"]<>0 then begin","        if Cmd.Flt[\"Axes(AxisAPos).Value\"]>=0 then","          v_DIR = +1","        else","          v_DIR = -1","      end","    end else ! Stay","      v_DIR = 0","","    v_ST = 000000","    if v_DIR>0 then","      v_ST = v_ST + 200000 ! Direction selection \"Plus\" optimized, Swivel no direction \"minus\" off","    else if v_DIR<0 then","      v_ST = v_ST + 100000 ! Direction selection \"Minus\" optimized, Swivel no direction \"plus\" off","","    if Cmd.Int[\"IsSpatial\"]>0 then begin","      !CYCLE800(_FR, _TC, _ST, _MODE, _X0, _Y0, _Z0, _A, _B, _C, _X1, _Y1, _Z1, _DIR, _FR _I)","      call Cycle800(0, \"\", v_ST, 0*128 + 0*64 + 1*32 + 1*16 + 1*8 + 0*4 + 0*2 + 1*1,","           Cmd.Flt[\"WCS.OriginPoint.X\"], Cmd.Flt[\"WCS.OriginPoint.Y\"], Cmd.Flt[\"WCS.OriginPoint.Z\"],","           Cmd.Flt[\"WCS.RotAngles.A\"], Cmd.Flt[\"WCS.RotAngles.B\"], Cmd.Flt[\"WCS.RotAngles.C\"],","           0,0,0,v_DIR,0)","    end else begin","      if Cmd.Ptr[\"Axes(AxisAPos)\"]<>0 then","        v_A = Cmd.Flt[\"Axes(AxisAPos).Value\"]","      else","        v_A = 0","      if Cmd.Ptr[\"Axes(AxisBPos)\"]<>0 then","        v_B = Cmd.Flt[\"Axes(AxisBPos).Value\"]","      else","        v_B = 0","      if Cmd.Ptr[\"Axes(AxisCPos)\"]<>0 then","        v_C = Cmd.Flt[\"Axes(AxisCPos).Value\"]","      else","        v_C = 0","      !CYCLE800(_FR, _TC, _ST, _MODE, _X0, _Y0, _Z0, _A, _B, _C, _X1, _Y1, _Z1, _DIR, _FR _I)","      call Cycle800(0, \"\", v_ST, 1*128 + 1*64 + 1*32 + 1*16 + 1*8 + 0*4 + 0*2 + 1*1,","           Cmd.Flt[\"WCS.OriginPoint.X\"], Cmd.Flt[\"WCS.OriginPoint.Y\"], Cmd.Flt[\"WCS.OriginPoint.Z\"],","           v_A, v_B, v_C, 0,0,0,v_DIR,0)","    end","    WasCycle800 = 1","  end else","    Print \"Unknown coordinate system\"","end"]},{"name":"PartNo","source":["program PartNo","  s$: String","  ","  MaxReal = 99999","  XT_ = 0;  FROMX_ = 0","  YT_ = 0;  FROMY_ = 0","  ZT_ = 0;  FROMZ_ = 0","  CycleOn = 0          ! 0 - cycle unplugged, 1 - cycle is enclosed","  IsFirstCycle = 1;    ! 1 - eto pervyj czikl, 0 - vse ostalnye","  PolarInterp = 0","  CylindInterp = 0","  WasCycle800 = 0","  CSOnCount = 0","","  ! Installing the functions of machine by default","  X = MaxReal; X@=X","  Y = MaxReal; Y@=Y","  Z = MaxReal; Z@=Z","  A = MaxReal; A@ = A","  C = MaxReal; C@ = C","  INTERP_ = 9999; INTERP_@ = INTERP_","  GFeed = 94; GFeed@ = GFeed","  GCSS = 97; GCSS@ = GCSS","  Msp = 5; Msp@ = 5","  Mc = 9; Mc@ = 9","  MABrake = 47; MABrake@ = MABrake ! Off","  MBBrake = 49; MBBrake@ = MBBrake ! Off","  MCBrake = 11; MCBrake@ = MCBrake ! Off","!---------LOOK AHEAD G641 ADIS=-----------","  tolerance_look_ahead = 0.05             !Set here value for parameter G641 ADIS=","!  input \"Vvedite tochnost sglazhivaniya dlya komandy LOOK AHEAD (G641 ADIS=)\",  tolerance_look_ahead     !Mozhno budet udalit","!-----------------------------------------","  call RenameSubs","  ","  HeaderPath = \";$PATH=/_N_MPF_DIR\"","  NCFileExt = \".mpf\"","  s$ = NCName$","  Replace(s$, \" \", \"_\")","  MainNCPath = \"\"","  MainNCFile = MainNCPath + \"_N_\" + s$ + \"_MPF\" + NCFileExt","  CurNCFile = MainNCFile","","  Output \";%_N_\" + s$ + \"_MPF\"","  call OutHeader","  HeaderPath = \";$PATH=/_N_SPF_DIR\"","","  call PrintAllTools","  call PrintCS","end"]},{"name":"PhysicGoto","source":["program PhysicGoto","  OutBlock","  call Cycle800SwitchOff","  if Cmd.Ptr[\"Axes(AxisXPos)\"]<>0 then begin","    X = Cmd.Flt[\"Axes(AxisXPos).Value\"]; X@ = MaxReal","  end","  if Cmd.Ptr[\"Axes(AxisYPos)\"]<>0 then begin","    Y = Cmd.Flt[\"Axes(AxisYPos).Value\"]; Y@ = MaxReal","  end","  if Cmd.Ptr[\"Axes(AxisZPos)\"]<>0 then begin","    Z = Cmd.Flt[\"Axes(AxisZPos).Value\"]; Z@ = MaxReal","  end","  if Cmd.Ptr[\"Axes(AxisAPos)\"]<>0 then begin","    A = Cmd.Flt[\"Axes(AxisAPos).Value\"]; A@ = MaxReal","  end","  if Cmd.Ptr[\"Axes(AxisBPos)\"]<>0 then begin","    B = Cmd.Flt[\"Axes(AxisBPos).Value\"]; B@ = MaxReal","  end","  if Cmd.Ptr[\"Axes(AxisCPos)\"]<>0 then begin","    C = Cmd.Flt[\"Axes(AxisCPos).Value\"]; C@ = MaxReal","  end","  if (X<>X@) or (Y<>Y@) or (Z<>Z@) or","     (A<>A@) or (B<>B@) or (C<>C@)","  then begin","    !Interp_ = 53; Interp_@ = MaxReal","    SUPA = 1; SUPA@ = 0","    DTool = 0 ! Korrektor na dlinu","    OutBlock","  end","end"]},{"name":"Plane","source":["program Plane","  call ConvertPlaneNumber(cld[1], Plane_)","  GPlane = Plane_","end"]},{"name":"PPFun","source":["program PPFun","  case cld[1] of","    50: begin ! StartSub","      OutBlock","      CurNCFile = MainNCPath + NCSub.Name(cld[2]) + \".spf\" !NCFileExt","      ChangeNCFile CurNCFile","      Output \"%_N_\" + NCSub.Name(cld[2]) + \"_SPF\"","      call OutHeader","      Output \"\"","      BlockN = 0; BlockN@ = BlockN","      Interp_ = 0; Interp_@ = MaxReal","      FEED_ = 0; FEED_@ = FEED_","    end","    51: begin ! EndSub","      OutBlock","      M = 17; M@ = MaxReal","      OutBlock","      CurNCFile = MainNCFile","    end","    52: begin ! CallSub","      call CheckAxesBrake(2, 2, 2)","      OutBlock","      Output \"CALL \" + Chr(34) + \"_N_\" + NCSub.Name(cld[2]) + \"_SPF\" + Chr(34)","    end","    58: begin ! TechInfo","      IsFirstCycle = 1","      CSOnCount = 0","      type_op = Cmd.ptr[\"PPFun(TechInfo).Operation(1)\"].Name","!      if type_op<>\"TST2DContouringOp\" and type_op<>\"HoleMachiningOp\" and type_op<>\"TSTFBMMillOp\" then begin","!        G641_on_off = 1","!      end else G641_on_off = 0","    end","    59: begin ! EndTechInfo","      if G641_on_off = 10 then begin","        BlockN = BlockN + BlockStep","        output \"N\"+str(blockN)+\" G60\"","        G641_on_off = 0","      end","      call Cycle800SwitchOff","      if Cmd.Int[\"PPFun(EndTechInfo).Enabled\"]<>0 then begin","        if (CLDFile.CurrentFile<>(CLDFile.FileCount-1)) then begin","          M = 1","          M@ = 0","          OutBlock","        end","        Output \"\"","      end","    end","  end","end"]},{"name":"PPrint","source":["program PPrint","  print cldata$","end"]},{"name":"Rapid","source":["program Rapid","  if INTERP_ > 0 then INTERP_ = 0    ! G0","end"]},{"name":"Spindl","source":["program Spindl","  if cld[1]=71 then begin ! Spindle On","    GPlane = Plane_","    if abs(GPlane)=abs(GPlane@) then","      GPlane@ = GPlane","    OutBlock","    case cld[4] of","      0: begin ! RPM","        GCSS = 97","        S = cld[2]; S@=MaxReal","        if cld[2]>0 then Msp = 3 else Msp = 4","        Msp@ = MaxReal","        OutBlock","      end","      2: begin ! CSS","        print \"CSS mode not realized\"","      end","    end","  end else if cld[1]=72 then begin ! Spindle Off","    Msp = 5; !Msp3@ = MaxReal","    OutBlock","  end else if cld[1]=246 then begin ! Spindle Orient","  end","end"]},{"name":"Stop","source":["program Stop","  OutBlock","  M = 0","  M@ = 1","  OutBlock","end"],"current":["program Stop","  OutBlock","  M = 0","  M@ = 1","  OutBlock","end"]},{"name":"ClampFixture","current":["program ClampFixture","  output \"M10\"   ! clamp on","end"]},{"name":"ProbeZ","current":["program ProbeZ","  output \"G38.2 Z-50. F100\"","  output \"G92 Z0\"","end"]}],"sub":[{"name":"CheckAxesBrake","source":["sub CheckAxesBrake(ABrake, BBrake, CBrake: Integer) ! 0 - Off, 1 - On, 2 - Output","  NeedAxesBrake: Integer","  tInterp: Integer","","  NeedAxesBrake = 0","  if NeedAxesBrake>0 then begin","    if Interp_<>Interp_@ then begin","      tInterp = Interp_","      Interp_ = Interp_@","    end else","      tInterp = -1","","    if ABrake>=0 then begin","      if ABrake=2 then begin","        if ExcitedAxABrake>0 then begin ! Brake excited before real move command","          ExcitedAxABrake = 0","          OutBlock","          MABrake@ = MaxReal","          OutBlock","        end","      end else begin","        if ABrake=1 then MABrake = 46 ! On","                    else MABrake = 47 ! Off","        if (ExcitedAxABrake>0) and (MABrake<>MABrake@) then begin ! Idle brake excite","          ExcitedAxABrake = 0","        end else begin","          if MABrake<>MABrake@ then","            ExcitedAxABrake = 1","          else","            ExcitedAxABrake = 0","        end","        MABrake@ = MABrake","      end","    end","    if BBrake>=0 then begin","      if BBrake=2 then begin","        if ExcitedAxBBrake>0 then begin ! Brake excited before real move command","          ExcitedAxBBrake = 0","          OutBlock","          MBBrake@ = MaxReal","          OutBlock","        end","      end else begin","        if BBrake=1 then MBBrake = 48 ! On","                    else MBBrake = 49 ! Off","        if (ExcitedAxBBrake>0) and (MBBrake<>MBBrake@) then begin ! Idle brake excite","          ExcitedAxBBrake = 0","        end else begin","          if MBBrake<>MBBrake@ then","            ExcitedAxBBrake = 1","          else","            ExcitedAxBBrake = 0","        end","        MBBrake@ = MBBrake","      end","    end","    if CBrake>=0 then begin","      if CBrake=2 then begin","        if ExcitedAxCBrake>0 then begin ! Brake excited before real move command","          ExcitedAxCBrake = 0","          OutBlock","          MCBrake@ = MaxReal","          OutBlock","        end","      end else begin","        if CBrake=1 then MCBrake = 10 ! On","                    else MCBrake = 11 ! Off","        if (ExcitedAxCBrake>0) and (MCBrake<>MCBrake@) then begin ! Idle brake excite","          ExcitedAxCBrake = 0","        end else begin","          if MCBrake<>MCBrake@ then","            ExcitedAxCBrake = 1","          else","            ExcitedAxCBrake = 0","        end","        MCBrake@ = MCBrake","      end","    end","","    if tInterp>=0 then begin","      Interp_ = tInterp","    end","  end","subend"]},{"name":"ConvertPlaneNumber","source":["sub ConvertPlaneNumber(InnerN, OuterN: Integer)","  case InnerN of","    33:  OuterN = 17  ! XY","    41:  OuterN = 18  ! XZ","    37:  OuterN = 19  ! YZ","    133: OuterN = -17 ! YX","    141: OuterN = -18 ! ZX","    137: OuterN = -19 ! ZY","    else print \"Wrong given a plane of processing\"","  end","subend"],"current":["sub ConvertPlaneNumber(InnerN, OuterN: Integer)","  case InnerN of","    33:  OuterN = 19  ! XY","    41:  OuterN = 18  ! XZ","    133: OuterN = -17 ! YX","    141: OuterN = -18 ! ZX","    137: OuterN = -19 ! ZY","    else print \"Wrong given a plane of processing\"","  end","subend"]},{"name":"Cycle800","source":["sub Cycle800(v_FR: Integer, v_TC: String, v_ST: Integer, v_MODE: Integer, v_X0: Real, v_Y0: Real, v_Z0: Real, v_A: Real, v_B: Real, v_C: Real, v_X1: Real, v_Y1: Real, v_Z1: Real, v_DIR: Integer, v_FR_I: Real)","  FormBlock","  OutStr$ = OutStr$ + \"CYCLE800(\"","  OutStr$ = OutStr$ + Str(v_FR)                     ! Retract mode (0-no, 1-Z, 2-ZXY, 4-max in tool dir, 5-incremental in tool dir)","  OutStr$ = OutStr$ + \",\" + Chr(34) +v_TC + Chr(34) ! Name of swivel data record, \"0\" - deselection","  OutStr$ = OutStr$ + \",\" + Str(v_ST)               ! Swivel plane behaviour (decimal coded XXXXXX)","                                                    ! Relativity: XXXXX0-New, XXXXX0-Additive","                                                    ! Tool tip correction: XXXX0X-do not correct, XXXX1X - correct (requires TRAORI option)","                                                    ! XXX0XX-Setting tool, XXX1XX-align tool in turning area, XXX2XX-align tool in milling area","                                                    ! XX_XXX-Internal use","                                                    ! X1XXXX-swivel no direction \"minus\", X2XXXX-swivel no direction \"plus\"","                                                    ! Direction selection: 0XXXXX-Behavior in earlier version, 1XXXXX-\"Minus\" optimized, 2XXXXX-\"Plus\" optimized","  OutStr$ = OutStr$ + \",\" + Str(v_MODE)        ! Swivel mode (binary coded - XXXXXXXX)","                                               ! Rot angle 1: XXXXXX01-around 1st axis, XXXXXX10-around 2nd axis, XXXXXX11-around 3rd axis","                                               ! Rot angle 2: XXXX01XX-around 1st axis, XXXX10XX-around 2nd axis, XXXX11XX-around 3rd axis","                                               ! Rot angle 3: XX01XXXX-around 1st axis, XX10XXXX-around 2nd axis, XX11XXXX-around 3rd axis","                                               ! Angle's type: 00XXXXXX-axis by axis ABC, 01XXXXXX-solid angle AB, 10XXXXXX-projection angle ABC, 11XXXXXX-machine's rotary axes direct","  OutStr$ = OutStr$ + \",\" + Str(v_X0)          ! Shift before rotation","  OutStr$ = OutStr$ + \",\" + Str(v_Y0)","  OutStr$ = OutStr$ + \",\" + Str(v_Z0)","  OutStr$ = OutStr$ + \",\" + Str(v_A)           ! Rotation angles","  OutStr$ = OutStr$ + \",\" + Str(v_B)","  OutStr$ = OutStr$ + \",\" + Str(v_C)","  OutStr$ = OutStr$ + \",\" + Str(v_X1)          ! Shift after rotation","  OutStr$ = OutStr$ + \",\" + Str(v_Y1)","  OutStr$ = OutStr$ + \",\" + Str(v_Z1)","  OutStr$ = OutStr$ + \",\" + Str(v_DIR)         ! Possible solution selection: -1 - minus (lower), +1 - plus (higher), 0 - no traversing of rotary axes","  OutStr$ = OutStr$ + \",\" + Str(v_FR_I) + \",0)\"  ! Value of incremental retraction in tool direction","  Output OutStr$","subend"]},{"name":"Cycle800SwitchOff","source":["sub Cycle800SwitchOff","  tInterp: Real","  tInterp = Interp_@; Interp_@ = Interp_","  OutBlock","  if WasCycle800<>0 then begin","    FormBlock","    Output OutStr$ + \"CYCLE800()\"","    WasCycle800 = 0","  end","  Interp_@ = tInterp","subend"]},{"name":"Cycle_position","source":["sub Cycle_position","  case abs(GPlane) of","    17: begin","     if IsFirstCycle = 1   then  !Ne vyvodit pervoe otverstie v czikle, t.k. schitaet chto ono uzhe vyvedeno","     X@ = 9999999; Y@ = 9999999 ;","     X = XT_; Y = YT_ ; OutBlock    !Vyvod otverstij  ! XY","    end","    18: begin","      if IsFirstCycle = 1   then  !Ne vyvodit pervoe otverstie v czikle, t.k. schitaet chto ono uzhe vyvedeno","      X@ = 9999999;  Z@ = 9999999","      X = XT_; Z = ZT_ ; OutBlock    !Vyvod otverstij   ! ZX","    end","    19: begin","     if IsFirstCycle = 1   then  !Ne vyvodit pervoe otverstie v czikle, t.k. schitaet chto ono uzhe vyvedeno","     Y@ = 9999999 ; Z@ = 9999999","     Y = YT_; Z = ZT_ ; OutBlock    !Vyvod otverstij  ! YZ","    end","  end","subend"]},{"name":"Filter","source":["sub Filter(S: String)","","subend"],"current":["sub Filter(S: String)","","subend"]},{"name":"MakeAnglePositive","source":["sub MakeAnglePositive(Val: Real)","  while Val<0 do","    Val = Val + 360","  while Val>360 do","    Val = Val - 360","subend"],"current":["sub MakeAnglePositive(Val: Real)","  while Val<0 do","    Val = Val + 360","  while Val>360 do","    Val = Val - 360","subend"]},{"name":"OutCycle","source":["sub OutCycle(ACycleID: String, CycleGeomName: String)","  i: Integer","  n: Integer","  sss: String","","  sss = ACycleID","  if Len(Prms)>0 then","    sss = sss + \"(\"","  if CycleGeomName<>\"\" then","    sss = sss + chr(34) + CycleGeomName + chr(34)","  n = 0","  for i = 1 to Len(Prms) do","    if Prms[i]<>MaxReal then n = i","  for i = 1 to n do begin","    if (i>1) or (CycleGeomName<>\"\") then","      sss = sss + \",\"","    if Prms[i]<>MaxReal then ! Parameter skipping","      sss = sss + Str(Prms[i]:3)","  end","  if Len(Prms)>0 then sss = sss + \")\"","  If  Cyclecompare <>  sss then begin       !Dobavil variant dlya togo, chtoby vyvodit massiv otverstij odnim cziklom","    If IsFirstCycle <> 1 and Cycle_pocket = 0 then begin          !menyaetsya parametr, nuzhno zakryt czikl","      BlockN = BlockN + BlockStep ; output \"N\"+str(blockN)+\" MCALL\"","      X = XT_ ; Y = YT_ ; Interp_@ = MaxReal ; OutBlock   !Xolostye xody mezhdu proxodami","    end","    FormBlock ; Output OutStr$ + sss  !Vyvod czikla","    Cyclecompare = sss  !Zapominaem vse parametry czikla","  end","subend"]},{"name":"OutHeader","source":["sub OutHeader","  Output HeaderPath","  Output \"\"","  Output \"; Generated by CAM \"","  Output \"; Date: \" + CurDate","  Output \"; Time: \" + CurTime","subend"],"current":["sub OutHeader","  Output HeaderPath","  Output \"\"","  Output \"; Generated by CAM \"","  Output \"; Time: \" + CurTime","subend"]},{"name":"PrintAllTools","source":["sub PrintAllTools","  i: Integer","  j: Integer","  s$: String","","  Output \"\"","  Output \"; Tools list\"","  for i = 0 to CLDFile.FileCount-1 do begin","    if (CldFile[i].Enabled>0) and (CldFile[i].IsNCSub=0) then begin","      s$ = \"\"","      j = 1","      while j<CldFile[i].CmdCount do begin","        if CldFile[i].Cmd[j].Code = CodeOfCmd(\"PPFun\") then begin","          if CldFile[i].Cmd[j].Data[1]=58 then begin","            case CldFile[i].Cmd[j].Data[25] of","              0: s$ = \"Cylindrical mill\"","              1: s$ = \"Ball mill\"","              2: s$ = \"Torus mill\"","              3: s$ = \"Double radial mill\"","              4: s$ = \"Limited double radial mill\"","              5: s$ = \"Conical mill\"","              6: s$ = \"Limited conical mill\"","              7: s$ = \"Engraver\"","              8: s$ = \"Drill\"","              9: s$ = \"Composite tool\"","              10: s$ = \"Mill with negative radius\"","              11: s$ = \"Cutting tool\"","              12: s$ = \"Tap\"","              13: s$ = \"Center drill\"","              14: s$ = \"Countersink drill\"","              15: s$ = \"Spot facing drill\"","              16: s$ = \"Reamer\"","              17: s$ = \"Threading drill\"","            end","          end","        end else if CldFile[i].Cmd[j].Code = CodeOfCmd(\"LoadTl\") then begin","          OutStr$ = \"; T\" + Str(CldFile[i].Cmd[j].Data[1]) + \" =\"","          if s$<>\"\" then","            OutStr$ = OutStr$ + \" \" + s$","          OutStr$ = OutStr$ + \" D\" + Str(CldFile[i].Cmd[j].Data[5])","          OutStr$ = OutStr$ + \" L\" + Str(CldFile[i].Cmd[j].Data[8])","          if CldFile[i].Cmd[j+1].Code = CodeOfCmd(\"Comment\") then","            OutStr$ = OutStr$ + \", \" + Copy(CldFile[i].Cmd[j+1].Data, 2, 1000)","          Output OutStr$","          j = CldFile[i].CmdCount","        end","        j = j + 1","      end","    end","  end","subend"],"current":["sub PrintAllTools","  i: Integer","  j: Integer","  s$: String","  Output \"\"","  Output \"; Tools list\"","  for i = 1 to CLDFile.FileCount-1 do begin","    if (CldFile[i].Enabled>0) and (CldFile[i].IsNCSub=0) then begin","      s$ = \"\"","      j = 1","      while j<CldFile[i].CmdCount do begin","        if CldFile[i].Cmd[j].Code = CodeOfCmd(\"PPFun\") then begin","          if CldFile[i].Cmd[j].Data[1]=58 then begin","            case CldFile[i].Cmd[j].Data[25] of","              0: s$ = \"Cylindrical mill\"","              1: s$ = \"Ball mill\"","              2: s$ = \"Torus mill\"","              3: s$ = \"Double radial mill\"","              4: s$ = \"Limited double radial mill\"","              5: s$ = \"Conical mill\"","              6: s$ = \"Limited conical mill\"","              7: s$ = \"Engraver\"","              8: s$ = \"Drill\"","              9: s$ = \"Composite tool\"","              10: s$ = \"Mill with negative radius\"","              11: s$ = \"Cutting tool\"","              12: s$ = \"Tap\"","              13: s$ = \"Center drill\"","              14: s$ = \"Countersink drill\"","              15: s$ = \"Spot facing drill\"","              16: s$ = \"Reamer\"","              17: s$ = \"Threading drill\"","            end","          end","        end else if CldFile[i].Cmd[j].Code = CodeOfCmd(\"LoadTl\") then begin","          OutStr$ = \"; T\" + Str(CldFile[i].Cmd[j].Data[1]) + \" =\"","          if s$<>\"\" then","            OutStr$ = OutStr$ + \" \" + s$","          OutStr$ = OutStr$ + \" D\" + Str(CldFile[i].Cmd[j].Data[5])","          OutStr$ = OutStr$ + \" L\" + Str(CldFile[i].Cmd[j].Data[8])","          if CldFile[i].Cmd[j+1].Code = CodeOfCmd(\"Comment\") then","            OutStr$ = OutStr$ + \", \" + Copy(CldFile[i].Cmd[j+1].Data, 2, 1000)","          Output OutStr$","          j = CldFile[i].CmdCount","        end","        j = j + 1","      end","    end","  end","subend"]},{"name":"PrintCS","source":["sub PrintCS","  CSNum: array of Integer","  dx: array of Real","  dy: array of Real","  dz: array of Real","  da: array of Real","  db: array of Real","  dc: array of Real","  Cnt: Integer","  i: Integer","  j: Integer","  k: Integer","  n: Integer","  tx: Real","  ty: Real","  tz: Real","  ta: Real","  tb: Real","  tc: Real","  ok: Integer","  ","  Cnt = 0","  i = 0","  while i<CLDFile.FileCount do begin","    j = 1","    while j<CLDFile[i].CmdCount do begin","      if CLDFile[i].Cmd[j].Code=CodeOfCmd(\"Origin\") then begin","        if CLDFile[i].Cmd[j].Data[4]=0 then begin ! Select standard WCS","          n = CLDFile[i].Cmd[j].Data[5]","          tx = CLDFile[i].Cmd[j].Flt[\"MCS.OriginPoint.X\"]","          ty = CLDFile[i].Cmd[j].Flt[\"MCS.OriginPoint.Y\"]","          tz = CLDFile[i].Cmd[j].Flt[\"MCS.OriginPoint.Z\"]","          ta = CLDFile[i].Cmd[j].Flt[\"WCS.RotAngles.A\"]","          tb = CLDFile[i].Cmd[j].Flt[\"WCS.RotAngles.B\"]","          tc = CLDFile[i].Cmd[j].Flt[\"WCS.RotAngles.C\"]","          ok = 0","          k = 1","          while k<=Cnt do begin","            if (n=CSNum[k]) and","               (abs(tx-dx[k])<0.0001) and","               (abs(ty-dy[k])<0.0001) and","               (abs(tz-dz[k])<0.0001) and","               (abs(ta-da[k])<0.0001) and","               (abs(tb-db[k])<0.0001) and","               (abs(tc-dc[k])<0.0001)","            then begin","              ok = 1","              k = Cnt","            end","            k = k + 1","          end","          if ok=0 then begin","            Cnt = Cnt + 1","            CSNum[Cnt] = n","            dx[Cnt] = tx","            dy[Cnt] = ty","            dz[Cnt] = tz","            da[Cnt] = ta","            db[Cnt] = tb","            dc[Cnt] = tc","          end","        end","      end","      j = j + 1","    end","    i = i + 1","  end","  ","  if Cnt>0 then begin","    Output \" \"","    Output \"; Workpiece coordinate systems\"","    for i = 1 to Cnt do begin","      Output \"; G\" + Str(CSNum[i]) + \" = X\"+ Str(dx[i]) + \" Y\" + Str(dy[i]) +","            \" Z\" + Str(dz[i]) +","            \" A\" + Str(da[i]) +","            \" B\" + Str(db[i]) +","            \" C\" + Str(dc[i])","    end","    Output \" \"","  end","subend"]},{"name":"RenameSubs","source":["sub RenameSubs","  i: Integer","  j: Integer","  k: Integer","  s$: String","  ","  s$ = NCName$","  Replace(s$, \" \", \"_\")","  ! Prisvaivaem imena vsem podprogrammam","  for i = 0 to CLDFile.FileCount-1 do begin","    if CLDFile[i].IsNCSub>0 then begin","      j = 1","      while j<=CldFile[i].CmdCount do begin","        if CldFile[i].Cmd[j].Code=CodeOfCmd(\"PPFun\") then begin","          k = CldFile[i].Cmd[j].Data[1]","          if k=50 then begin ! STARTSUB","            k = CldFile[i].Cmd[j].Data[2]","            NCSub.Name(k) = s$ + \"_SUB\" + str(k)","            j = CldFile[i].CmdCount","          end","        end","        j = j + 1","      end","    end","  end","subend"]},{"name":"MyHeader","current":["sub MyHeader","  output \"; --- custom header ---\"","  return"]}],"obj":[]};
+
+var tab='cmd', filter='all', selName=null, CURACTS=[], CMAP=[];
+var TAB_TITLE={cmd:'Import commands',sub:'Import subprograms',obj:'Import objects'};
+var DIA='<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3.5" y="3.5" width="9" height="9" rx="1.5" transform="rotate(45 8 8)"></rect><circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none"></circle></svg>';
+function $(id){return document.getElementById(id);}
+function items(){return DATA[tab]||[];}
+function byName(a,b){return a.name.toLowerCase()<b.name.toLowerCase()?-1:1;}
+function eq(a,b){ if(!a||!b) return false; if(a.length!==b.length) return false; for(var i=0;i<a.length;i++) if(a[i]!==b[i]) return false; return true; }
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function diffLines(A,B){
+  var n=A.length,m=B.length,i,j; var dp=new Array(n+1); for(i=0;i<=n;i++){dp[i]=new Array(m+1).fill(0);}
+  for(i=n-1;i>=0;i--)for(j=m-1;j>=0;j--){dp[i][j]=A[i]===B[j]?dp[i+1][j+1]+1:Math.max(dp[i+1][j],dp[i][j+1]);}
+  var raw=[];i=0;j=0;
+  while(i<n&&j<m){ if(A[i]===B[j]){raw.push({op:'eq',a:A[i],b:B[j]});i++;j++;} else if(dp[i+1][j]>=dp[i][j+1]){raw.push({op:'del',a:A[i]});i++;} else {raw.push({op:'ins',b:B[j]});j++;} }
+  while(i<n){raw.push({op:'del',a:A[i]});i++;}
+  while(j<m){raw.push({op:'ins',b:B[j]});j++;}
+  var out=[]; for(var k=0;k<raw.length;k++){ if(raw[k].op==='del'&&raw[k+1]&&raw[k+1].op==='ins'){out.push({op:'chg',a:raw[k].a,b:raw[k+1].b});k++;} else out.push(raw[k]); } return out;
+}
+function inlineDiff(srcStr,curStr,cls){
+  var A=srcStr.split(''),B=curStr.split(''),n=A.length,m=B.length,i,j;
+  var dp=new Array(n+1); for(i=0;i<=n;i++) dp[i]=new Array(m+1).fill(0);
+  for(i=n-1;i>=0;i--)for(j=m-1;j>=0;j--){dp[i][j]=A[i]===B[j]?dp[i+1][j+1]+1:Math.max(dp[i+1][j],dp[i][j+1]);}
+  var lseg=[],rseg=[]; i=0;j=0;
+  function push(arr,hl,ch){ var last=arr[arr.length-1]; if(last&&last.hl===hl) last.t+=ch; else arr.push({hl:hl,t:ch}); }
+  while(i<n&&j<m){ if(A[i]===B[j]){push(lseg,false,A[i]);push(rseg,false,B[j]);i++;j++;}
+    else if(dp[i+1][j]>=dp[i][j+1]){push(lseg,true,A[i]);i++;}
+    else {push(rseg,true,B[j]);j++;} }
+  while(i<n){push(lseg,true,A[i]);i++;}
+  while(j<m){push(rseg,true,B[j]);j++;}
+  function rend(segs){ return segs.map(function(s){var t=esc(s.t);return s.hl?'<span class="'+(cls||'ch')+'">'+t+'</span>':t;}).join(''); }
+  return {l:rend(lseg),r:rend(rseg)};
+}
+function status(e){
+  if(!e.source) return 'orphan';
+  if(e.current==null) return 'add';
+  if(e.edited) return 'edited';
+  if(eq(e.current,e.source)) return e.merged?'merged':'ident';
+  return e.merged?'partial':'diff';
+}
+function rightVisible(e){ return e.current!=null; }
+function matchFilter(e){ var s=status(e);
+  if(filter==='all') return true;
+  if(filter==='diff') return s==='diff'||s==='edited'||s==='partial';
+  if(filter==='new') return s==='add';
+  if(filter==='merged') return s==='merged'||s==='ident';
+  return true;
+}
+function statusMark(s){
+  if(s==='ident')  return '<span class="th full"></span>';
+  if(s==='merged') return '<span class="th full"></span><span class="mk"><i class="ti ti-check"></i></span>';
+  if(s==='diff')   return '<span class="th full"></span><span class="mk">'+DIA+'</span>';
+  if(s==='add')    return '<span class="th toL"></span><span class="mk"><i class="ti ti-arrow-right"></i></span>';
+  if(s==='orphan') return '<span class="th toR"></span>';
+  return '';
+}
+function findSel(){ return items().filter(function(e){return e.name===selName;})[0]; }
+function thread(k){ return '<span class="th '+k+'"></span>'; }
+function nameCls(s){ return (s==='diff'||s==='partial')?' d':(s==='add'||s==='orphan')?' n':s==='edited'?' y':''; }
+function listGut(e,s){
+  var m=e.merged?'<span class="ed l m"></span><span class="ed r m"></span>':'';        // blue = был мерж
+  var act=(s==='add'||s==='diff'||s==='partial'||s==='edited');                         // есть что импортировать
+  var imp=act?'<button class="gbtn limport" title="Import to current"><i class="ti ti-arrow-right"></i></button>':'';
+  return m+imp;
+}
+function renderList(){
+  var L='',G='',R='';
+  items().filter(matchFilter).sort(byName).forEach(function(e){
+    var sc=selName===e.name?' sel':''; var st=status(e); var nc=nameCls(st);
+    L+='<div class="row'+sc+'" data-n="'+e.name+'">'+(e.source?'<span class="nm'+nc+'">'+e.name+'</span>':'')+'</div>';
+    G+='<div class="row'+sc+'" data-n="'+e.name+'">'+listGut(e,st)+'</div>';
+    R+='<div class="row'+sc+'" data-n="'+e.name+'">'+(rightVisible(e)?'<span class="nm'+nc+'">'+e.name+'</span>':'')+'</div>';
+  });
+  $('listL').innerHTML=L; $('listG').innerHTML=G; $('listR').innerHTML=R;
+}
+function renderCounts(){
+  if(curPost<0){ $('counts').textContent=''; return; }
+  var a=items();
+  var diff=a.filter(function(e){var s=status(e);return s==='diff'||s==='edited'||s==='partial';}).length;
+  var nw=a.filter(function(e){return status(e)==='add';}).length;
+  var mg=a.filter(function(e){var s=status(e);return s==='merged'||s==='ident';}).length;
+  $('counts').textContent=diff+' different · '+nw+' to add · '+mg+' merged';
+}
+function abtn(i,t){ return '<button class="gbtn" data-i="'+i+'" title="'+t+'"><i class="ti ti-arrow-right"></i></button>'; }
+// какие именно строки в current правились руками (сравнение с base — снимком до первой ручной правки)
+function editInfo(e){
+  var cur=e.current||[]; var info={cur:new Array(cur.length).fill(false), baseHas:null};
+  if(e.base==null) return info;
+  var ops=diffLines(cur, e.base), ci=0;
+  ops.forEach(function(o){
+    if(o.op==='eq'){ ci++; }
+    else if(o.op==='del'){ info.cur[ci]=true; ci++; }   // строка добавлена/набрана руками
+    else if(o.op==='chg'){ info.cur[ci]=true; ci++; }   // строка изменена руками
+    // ins: строка из base удалена руками — обрабатываем через baseHas ниже
+  });
+  info.baseHas={}; e.base.forEach(function(l){ info.baseHas[l]=true; });
+  return info;
+}
+function renderCode(){
+  var e=findSel();
+  if(!e){ $('codeL').innerHTML=''; $('codeG').innerHTML=''; $('codeR').innerHTML='<div class="codeplace"><i class="ti ti-code"></i> Select an element above</div>'; CURACTS=[]; CMAP=[]; drawCodeMap(); return; }
+  var ops=diffLines(e.current||[], e.source||[]); var acts=[]; var L='',G='',R='', cmap=[];
+  var ei=editInfo(e); var ci2=0;
+  ops.forEach(function(o){
+    if(o.op==='eq'){ var mg=e.mergedLines&&e.mergedLines.indexOf(o.b)>=0; var mc=mg?' mergedline':''; cmap.push(mg?'b':null); L+='<div class="row'+mc+'">'+esc(o.b)+'</div>'; G+='<div class="row">'+(mg?'<span class="ed l m"></span><span class="ed r m"></span>':'')+'</div>'; R+='<div class="row'+mc+'" contenteditable="true" data-gap="0">'+esc(o.a)+'</div>'; ci2++; }
+    else if(o.op==='chg'){ var y=ei.cur[ci2]; var ai=acts.length;acts.push({type:'chg',line:o.b}); var idf=inlineDiff(o.b,o.a,y?'ch y':'ch'); cmap.push(y?'y':'r'); L+='<div class="row diffline">'+idf.l+'</div>'; G+='<div class="row"><span class="ed l'+(y?' y':'')+'"></span><span class="ed r'+(y?' y':'')+'"></span>'+abtn(ai,'Replace line in current')+'</div>'; R+='<div class="row diffline" contenteditable="true" data-gap="0">'+idf.r+'</div>'; ci2++; }
+    else if(o.op==='del'){ var y2=ei.cur[ci2]; cmap.push(y2?'y':'r'); L+='<div class="row"></div>'; G+='<div class="row"><span class="ed r'+(y2?' y':'')+'"></span></div>'; R+='<div class="row diffline" contenteditable="true" data-gap="0">'+esc(o.a)+'</div>'; ci2++; }
+    else if(o.op==='ins'){ var deld=ei.baseHas&&ei.baseHas[o.b]; var ai2=acts.length;acts.push({type:'ins',line:o.b}); cmap.push(deld?'y':'r'); L+='<div class="row diffline">'+esc(o.b)+'</div>'; G+='<div class="row">'+(deld?'<span class="ed r y"></span>':'<span class="ed l"></span>')+abtn(ai2,'Import line to current')+'</div>'; R+='<div class="row gap'+(deld?' del':'')+'" data-gap="1" title="Строка есть в импортируемом посте — нажмите → чтобы перенести"></div>'; }
+  });
+  $('codeL').innerHTML=L; $('codeG').innerHTML=G; $('codeR').innerHTML=R; CURACTS=acts; CMAP=cmap;
+  Array.prototype.forEach.call($('codeG').querySelectorAll('.gbtn'),function(b){ b.onclick=function(ev){ ev.stopPropagation(); applyAct(+b.getAttribute('data-i')); }; });
+  drawCodeMap();
+}
+function drawCodeMap(){
+  var m=$('codeMap'); if(!m) return; var n=CMAP.length, H=m.clientHeight;
+  if(!n||!H){ m.innerHTML=''; return; }
+  var s='';
+  for(var i=0;i<n;i++){ if(!CMAP[i]) continue;
+    var top=Math.round(i*H/n), h=Math.max(2,Math.round((i+1)*H/n)-top-1);
+    s+='<span class="mtick '+CMAP[i]+'" style="top:'+top+'px;height:'+h+'px"></span>'; }
+  var rp=$('codeR'), sh=rp.scrollHeight, vy=sh?Math.round(rp.scrollTop/sh*H):0, vh=sh?Math.round(rp.clientHeight/sh*H):H;
+  m.innerHTML=s+'<span class="mview" style="top:'+vy+'px;height:'+vh+'px"></span>';
+}
+function readRight(){ var cur=[]; Array.prototype.forEach.call($('codeR').querySelectorAll('.row'),function(c){ var t=c.textContent.replace(/\u00a0/g,' '); var gap=c.getAttribute('data-gap')==='1'; if(gap && t.trim()==='') return; t.split('\n').forEach(function(ln){cur.push(ln);}); }); return cur; }
+function applyAct(i){
+  var e=findSel(); if(!e) return; var a=CURACTS[i]; if(!a) return;
+  e.current=readRight();
+  var ops=diffLines(e.current||[], e.source||[]); var ci=0, done=false;
+  for(var k=0;k<ops.length && !done;k++){ var o=ops[k];
+    if(o.op==='eq'){ci++;}
+    else if(o.op==='del'){ci++;}
+    else if(o.op==='chg'){ if(a.type==='chg'&&o.b===a.line){ e.current[ci]=a.line; done=true; } ci++; }
+    else if(o.op==='ins'){ if(a.type==='ins'&&o.b===a.line){ e.current.splice(ci,0,a.line); done=true; } }
+  }
+  e.touched=true; e.merged=true; e.mergedLines=e.mergedLines||[]; if(a.line!=null) e.mergedLines.push(a.line); renderCode(); renderList(); renderCounts();
+}
+function rowByName(paneId,n){ return Array.prototype.filter.call($(paneId).children,function(r){return r.getAttribute('data-n')===n;})[0]; }
+function scrollSelIntoView(){
+  if(!selName) return;
+  var lr=rowByName('listL',selName), rr=rowByName('listR',selName);
+  if(lr) lr.scrollIntoView({block:'nearest'});
+  if(rr) rr.scrollIntoView({block:'nearest'});
+}
+var PPDIR='C:\\Users\\Public\\Documents\\Ency NB\\Version 3\\Postprocessors';
+var POSTS=[
+  {name:'Sinumerik (840D)_Mill.sppx', dir:PPDIR+'\\Mill'},
+  {name:'Fanuc 0i-MF_Mill.sppx', dir:PPDIR+'\\Mill'},
+  {name:'Heidenhain TNC640_Mill.sppx', dir:PPDIR+'\\Mill'},
+  {name:'Mazak Smooth G_Mill.sppx', dir:PPDIR+'\\Mill'},
+  {name:'Sinumerik (840D)_Lathe.sppx', dir:PPDIR+'\\Lathe'}
+];
+var curPost=-1;
+// --- источники постов (в прототипе реально распарсен только post 0; остальные синтезируем как варианты) ---
+function dataToSource(){ var o={}; ['cmd','sub','obj'].forEach(function(t){ o[t]=(DATA[t]||[]).filter(function(e){return e.source;}).map(function(e){return {name:e.name,code:e.source.slice()};}); }); return o; }
+function deriveSource(base,seed){
+  var tag=['Base','Fanuc','Heiden','Mazak','Lathe'][seed]||('V'+seed); var out={};
+  ['cmd','sub','obj'].forEach(function(t){
+    var res=[];
+    (base[t]||[]).forEach(function(x,i){
+      if((i*3+seed)%8===2) return;                       // у каждого поста свой набор команд (часть отсутствует)
+      var code=x.code.slice();
+      if(code.length>3 && (i+seed)%2===0){               // правим строку → появится chg-diff
+        var li=1+((i*7+seed)%(code.length-1)); code[li]=code[li]+'    ; '+tag;
+      }
+      res.push({name:x.name,code:code});
+    });
+    if(t==='cmd') res.push({name:tag+'Init',code:['program '+tag+'Init','  ; уникально для '+tag,'  call CheckAxesBrake(0, 0, 0)','  ret']});  // команда только в этом посте
+    out[t]=res;
+  });
+  return out;
+}
+var POST0=dataToSource(); POSTS[0].data=POST0;
+for(var _pi=1;_pi<POSTS.length;_pi++) POSTS[_pi].data=deriveSource(POST0,_pi);
+function renderPost(){
+  var nm=$('impName'), pa=$('postPath'), m=$('mainArea');
+  if(curPost<0){ pa.textContent=''; nm.textContent='Select a postprocessor…'; nm.classList.add('ph'); if(m) m.classList.add('no-post'); return; }
+  var p=POSTS[curPost]; pa.textContent=p.dir?p.dir+'\\':''; nm.textContent=p.name; nm.classList.remove('ph'); if(m) m.classList.remove('no-post');
+}
+function buildPostMenu(){ $('postMenu').innerHTML=POSTS.map(function(p,i){
+  return '<div class="opt'+(i===curPost?' sel':'')+'" data-i="'+i+'"><span class="oname">'+esc(p.name)+'</span><span class="opath">'+esc(p.dir||'локальный файл')+'</span></div>';
+}).join(''); }
+function parseSppx(text){
+  var doc; try{ doc=new DOMParser().parseFromString(text,'application/xml'); }catch(e){ return null; }
+  if(!doc || doc.getElementsByTagName('parsererror').length) return null;
+  function grab(tag){ var out=[]; Array.prototype.forEach.call(doc.getElementsByTagName(tag),function(el){
+    var codeEl=el.getElementsByTagName('ProgramCode')[0]; if(!codeEl) return;
+    var lines=codeEl.textContent.split(/\r?\n/);
+    while(lines.length && lines[lines.length-1].trim()==='') lines.pop();
+    while(lines.length && lines[0].trim()==='') lines.shift();
+    var name=null; for(var i=0;i<lines.length;i++){ var m=lines[i].match(/^\s*(?:program|sub|object)\s+(\S+)/i); if(m){name=m[1];break;} }
+    if(!name) return; out.push({name:name,code:lines});
+  }); return out; }
+  return { cmd:grab('Program'), sub:grab('Subroutine'), obj:grab('Object') };
+}
+function loadImport(p){
+  ['cmd','sub','obj'].forEach(function(t){
+    var loaded=p[t]||[], cur={}, names={}, list=[];
+    (DATA[t]||[]).forEach(function(e){ if(e.current!=null) cur[e.name]=e.current; });
+    loaded.forEach(function(x){ names[x.name]=true; list.push({name:x.name,source:x.code,current:cur[x.name]!=null?cur[x.name]:null}); });
+    Object.keys(cur).forEach(function(nm){ if(!names[nm]) list.push({name:nm,source:null,current:cur[nm]}); });
+    DATA[t]=list;
+  });
+  selName=null; tab='cmd';
+  Array.prototype.forEach.call($('tabs').querySelectorAll('.tab'),function(c){c.classList.toggle('on',c.dataset.tab==='cmd');});
+}
+function mergeAll(){
+  if(curPost<0) return;
+  items().filter(matchFilter).forEach(function(e){
+    if(!e.source) return; var s=status(e);
+    if(s==='add'||s==='diff'||s==='partial'||s==='edited'){
+      e.current=e.source.slice(); e.mergedLines=e.source.slice(); e.merged=true; e.edited=false; e.touched=true;
+    }
+  });
+  render();
+}
+function render(){ $('winTitle').textContent=TAB_TITLE[tab]; renderList(); renderCode(); renderCounts(); }
+
+// ---- init bindings (once) ----
+function syncScroll(ids){ var ps=ids.map($); var lock=false; ps.forEach(function(p){ p.addEventListener('scroll',function(){ if(lock)return; lock=true; var t=p.scrollTop; ps.forEach(function(q){ if(q!==p && q.scrollTop!==t) q.scrollTop=t; }); lock=false; }); }); }
+syncScroll(['codeL','codeG','codeR']);
+syncScroll(['listL','listG','listR']);
+$('codeR').addEventListener('scroll',drawCodeMap);
+window.addEventListener('resize',drawCodeMap);
+$('codeMap').addEventListener('mousedown',function(e){ e.preventDefault();
+  function mv(ev){ var r=$('codeMap').getBoundingClientRect(), frac=Math.max(0,Math.min(1,(ev.clientY-r.top)/r.height));
+    var rp=$('codeR'), max=rp.scrollHeight-rp.clientHeight; rp.scrollTop=Math.max(0,Math.min(frac*rp.scrollHeight-rp.clientHeight/2,max)); }
+  mv(e);
+  function up(){ document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); }
+  document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up);
+});
+
+$('listZone').addEventListener('click',function(ev){
+  var row=ev.target.closest('.row'); if(!row) return; var n=row.getAttribute('data-n');
+  var e=items().filter(function(x){return x.name===n;})[0]; if(!e) return;
+  if(ev.target.closest('.limport')){ ev.stopPropagation(); e.current=(e.source||[]).slice(); e.mergedLines=(e.source||[]).slice(); e.merged=true; e.edited=false; e.touched=true; renderList(); renderCounts(); if(selName===n) renderCode(); return; }
+  selName=n; renderList(); renderCode(); scrollSelIntoView();
+});
+$('codeR').addEventListener('input',function(ev){ if(!ev.target.closest('.row')) return; var e=findSel(); if(!e) return; if(e.base==null) e.base=(e.current||[]).slice(); e.current=readRight(); e.touched=true; e.edited=true; renderList(); renderCounts(); });
+// смещение каретки в символах внутри строки-ячейки
+function caretOffsetIn(row){ var sel=window.getSelection(); if(!sel||!sel.rangeCount) return (row.textContent||'').length; var r=sel.getRangeAt(0).cloneRange(); r.selectNodeContents(row); try{ r.setEnd(sel.anchorNode, sel.anchorOffset); }catch(e){ return (row.textContent||'').length; } return r.toString().length; }
+function placeCaret(row,off){ if(!row) return; row.focus(); var tn=row.firstChild; if(!tn||tn.nodeType!==3){ tn=document.createTextNode(''); row.insertBefore(tn,row.firstChild||null); } off=Math.max(0,Math.min(off,tn.length)); var sel=window.getSelection(); var rng=document.createRange(); rng.setStart(tn,off); rng.collapse(true); sel.removeAllRanges(); sel.addRange(rng); }
+function focusCurLine(idx,off){ var rows=$('codeR').querySelectorAll('.row'); var c=0; for(var i=0;i<rows.length;i++){ if(rows[i].getAttribute('data-gap')==='1') continue; if(c===idx){ placeCaret(rows[i],off); return; } c++; } }
+// Enter = реальная новая строка current (а не \n внутри ячейки): режем строку по каретке, перерисовываем, ставим каретку в новую строку
+$('codeR').addEventListener('keydown',function(ev){
+  if(ev.key!=='Enter') return;
+  var sel=window.getSelection(); if(!sel||!sel.rangeCount) return;
+  var node=sel.anchorNode; var row=(node.nodeType===3?node.parentElement:node).closest('.row');
+  if(!row || row.getAttribute('data-gap')==='1') return;
+  ev.preventDefault();
+  var e=findSel(); if(!e) return; if(e.base==null) e.base=(e.current||[]).slice();
+  var off=caretOffsetIn(row), text=row.textContent.replace(/ /g,' ');
+  var before=text.slice(0,off), after=text.slice(off);
+  var cur=[], newIdx=-1;
+  Array.prototype.forEach.call($('codeR').querySelectorAll('.row'),function(r){
+    if(r.getAttribute('data-gap')==='1') return;                    // read-only плейсхолдер — строки нет
+    if(r===row){ cur.push(before); newIdx=cur.length; cur.push(after); }
+    else cur.push(r.textContent.replace(/ /g,' '));
+  });
+  e.current=cur; e.touched=true; e.edited=true;
+  renderCode(); renderList(); renderCounts();
+  focusCurLine(newIdx,0);
+});
+$('codeZone').addEventListener('focusout',function(ev){ if(!$('codeZone').contains(ev.relatedTarget)) renderCode(); });
+
+$('tabs').addEventListener('click',function(e){ var t=e.target.closest('.tab'); if(!t) return; tab=t.dataset.tab; selName=null; Array.prototype.forEach.call(this.querySelectorAll('.tab'),function(c){c.classList.toggle('on',c===t);}); render(); });
+$('filters').addEventListener('click',function(e){ var b=e.target.closest('button'); if(!b) return; filter=b.dataset.f; Array.prototype.forEach.call(this.children,function(c){c.classList.toggle('on',c===b);}); renderList(); renderCounts(); });
+$('mergeAll').addEventListener('click',mergeAll);
+$('impBtn').addEventListener('click',function(e){ e.stopPropagation(); $('impFile').click(); });
+$('emptyImport').addEventListener('click',function(e){ e.stopPropagation(); $('impFile').click(); });
+$('impFile').addEventListener('change',function(){ var f=this.files&&this.files[0]; this.value=''; if(!f) return;
+  var rd=new FileReader();
+  rd.onload=function(){ var p=parseSppx(rd.result);
+    if(!p || (!p.cmd.length && !p.sub.length && !p.obj.length)){ alert('Не удалось разобрать постпроцессор:\n'+f.name); return; }
+    loadImport(p); POSTS.push({name:f.name,dir:'(импортирован с компьютера)',data:p}); curPost=POSTS.length-1; renderPost(); buildPostMenu(); render();
+  };
+  rd.readAsText(f);
+});
+$('postCombo').addEventListener('click',function(){ var m=$('postMenu'); if(!m.hidden){ m.hidden=true; return; } m.style.left=this.offsetLeft+'px'; m.style.width=this.offsetWidth+'px'; m.style.top=(this.offsetTop+this.offsetHeight+2)+'px'; m.hidden=false; });
+$('postMenu').addEventListener('click',function(e){ var o=e.target.closest('.opt'); if(!o) return; var i=+o.getAttribute('data-i'); this.hidden=true; if(i===curPost) return; curPost=i; var p=POSTS[i]; if(p.data) loadImport(p.data); renderPost(); buildPostMenu(); render(); });
+document.addEventListener('click',function(e){ if(!e.target.closest('#postCombo')&&!e.target.closest('#postMenu')) $('postMenu').hidden=true; });
+$('okBtn').addEventListener('click',function(){ var a=items().filter(function(e){return status(e)==='merged';}); alert('Merged in this session: '+(a.length?a.map(function(e){return e.name;}).join(', '):'none')); });
+(function(){ var codez=$('codeZone'), main=$('mainArea'), split=$('split'); var h=280;
+  function setH(v){ h=Math.max(90, Math.min(v, main.clientHeight-150)); codez.style.height=h+'px'; }
+  setH(h);
+  split.addEventListener('mousedown',function(e){ e.preventDefault(); var sy=e.clientY, sh=h;
+    function mv(ev){ setH(sh+(sy-ev.clientY)); drawCodeMap(); }
+    function up(){ document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); }
+    document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up);
+  });
+})();
+renderPost(); buildPostMenu();
+render();
+</script>
+</body>
+</html>
