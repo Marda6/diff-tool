@@ -32,17 +32,14 @@ body{background:#070808;color:var(--fg);font:400 12px/16px 'Inter',system-ui,san
 .filters button{height:22px;padding:0 9px;background:transparent;border:1px solid transparent;border-radius:var(--radius);color:var(--t56);cursor:pointer;font:inherit}
 .filters button:hover{color:var(--fg);background:var(--b8)}
 .filters button.on{color:var(--fg);background:var(--b8);border-color:var(--b16)}
-.main{flex:1;display:flex;flex-direction:column;min-height:0}
+.main{flex:1;display:flex;flex-direction:column;min-height:0;position:relative}
 .cname.ph{color:var(--t48)}
-.empty{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:24px;color:var(--t48)}
-#mainArea.no-post #listZone,#mainArea.no-post #split,#mainArea.no-post #codeZone{display:none}
-#mainArea.no-post .empty{display:flex}
-.empty .ei{font-size:30px;color:var(--b24);margin-bottom:2px}
-.empty .et{font-size:13px;color:var(--t72)}
-.empty .es{font-size:12px;max-width:330px;line-height:16px}
-.empty .eb{margin-top:8px;height:26px;padding:0 12px;display:inline-flex;align-items:center;gap:6px;background:var(--b4);border:1px solid var(--b16);border-radius:var(--radius);color:var(--t80);cursor:pointer;font:inherit}
-.empty .eb:hover{background:var(--b12);color:var(--fg)}
-.empty .eb i{font-size:14px}
+/* подсказка живёт В ЛЕВОЙ панели списка команд; низ левого (код) и правый current остаются как есть */
+.lhint{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:24px;color:var(--t48)}
+.lhint .et{font-size:13px;color:var(--t72)}
+.lhint .es{font-size:12px;max-width:280px;line-height:16px}
+.lhint .eb{margin-top:8px;height:26px;padding:0 12px;display:inline-flex;align-items:center;background:var(--b4);border:1px solid var(--b16);border-radius:var(--radius);color:var(--t80);cursor:pointer;font:inherit}
+.lhint .eb:hover{background:var(--b12);color:var(--fg)}
 .hdr{display:grid;grid-template-columns:var(--cols);border-bottom:1px solid var(--b12);height:32px;flex-shrink:0}
 .hc.left{position:relative}
 #impBtn{display:flex;align-items:center;justify-content:center;padding:4px;border:0;background:transparent;color:var(--t56);cursor:pointer;border-radius:var(--radius);font-size:15px}
@@ -51,7 +48,7 @@ body{background:#070808;color:var(--fg);font:400 12px/16px 'Inter',system-ui,san
 .combo:hover{background:var(--b8)}
 .cpath{color:var(--t48);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex-shrink:1}
 .cname{color:var(--t80);white-space:nowrap;flex-shrink:0}
-.combo .ti-chevron-down{color:var(--t56);font-size:13px;flex-shrink:0}
+.combo .ti-chevron-down{color:var(--t56);font-size:13px;flex-shrink:0;margin-left:auto}
 .cmenu{position:absolute;z-index:20;background:#363b42;border:1px solid var(--b16);border-radius:6px;box-shadow:0 14px 36px rgba(0,0,0,.55);padding:4px;display:flex;flex-direction:column;gap:2px}
 .cmenu[hidden]{display:none}
 .cmenu .opt{display:flex;flex-direction:column;gap:1px;padding:5px 10px;border-radius:var(--radius);cursor:pointer}
@@ -166,12 +163,6 @@ body{background:#070808;color:var(--fg);font:400 12px/16px 'Inter',system-ui,san
       <div class="hc mid"><button id="mergeAll" title="Merge all to current"><i class="ti ti-chevrons-right"></i></button></div>
       <div class="hc right">To Current</div>
     </div>
-    <div class="empty" id="emptyState">
-      <i class="ti ti-arrows-diff ei"></i>
-      <div class="et">No postprocessor selected</div>
-      <div class="es">Pick a postprocessor in the header above, or import a .sppx file to compare its commands with your current one.</div>
-      <button class="eb" id="emptyImport"><i class="ti ti-dots"></i> Import from computer…</button>
-    </div>
     <div class="zone" id="listZone">
       <div class="pane lpane" id="listL"></div>
       <div class="pane gpane" id="listG"></div>
@@ -259,15 +250,16 @@ function listGut(e,s){
 function renderList(){
   var L='',G='',R='';
   items().filter(matchFilter).sort(byName).forEach(function(e){
-    var sc=selName===e.name?' sel':''; var st=status(e); var nc=nameCls(st);
+    var sc=selName===e.name?' sel':''; var st=status(e); var nc=hasImport()?nameCls(st):'';   // без импорта сравнивать не с чем → нейтральные имена
     L+='<div class="row'+sc+'" data-n="'+e.name+'">'+(e.source?'<span class="nm'+nc+'">'+e.name+'</span>':'')+'</div>';
     G+='<div class="row'+sc+'" data-n="'+e.name+'">'+listGut(e,st)+'</div>';
     R+='<div class="row'+sc+'" data-n="'+e.name+'">'+(rightVisible(e)?'<span class="nm'+nc+'">'+e.name+'</span>':'')+'</div>';
   });
-  $('listL').innerHTML=L; $('listG').innerHTML=G; $('listR').innerHTML=R;
+  $('listL').innerHTML=hasImport()?L:'<div class="lhint"><div class="et">No postprocessor selected</div><div class="es">Pick a postprocessor above, or import a .sppx file to compare it with your current one.</div><button class="eb" id="emptyImport">Import from computer</button></div>';
+  $('listG').innerHTML=G; $('listR').innerHTML=R;
 }
 function renderCounts(){
-  if(curPost<0){ $('counts').textContent=''; return; }
+  if(!hasImport()){ var n=items().length; $('counts').textContent=n?n+' commands in current':''; return; }
   var a=items();
   var diff=a.filter(function(e){var s=status(e);return s==='diff'||s==='edited'||s==='partial';}).length;
   var nw=a.filter(function(e){return status(e)==='add';}).length;
@@ -292,6 +284,11 @@ function editInfo(e){
 function renderCode(){
   var e=findSel();
   if(!e){ $('codeL').innerHTML=''; $('codeG').innerHTML=''; $('codeR').innerHTML='<div class="codeplace"><i class="ti ti-code"></i> Select an element above</div>'; CURACTS=[]; CMAP=[]; drawCodeMap(); return; }
+  if(!e.source){ // нет импортируемого аналога — просто редактируем current без diff-разметки
+    var Lp='',Gp='',Rp='',cmp=[];
+    (e.current||[]).forEach(function(ln){ Lp+='<div class="row"></div>'; Gp+='<div class="row"></div>'; Rp+='<div class="row" contenteditable="true" data-gap="0">'+esc(ln)+'</div>'; cmp.push(null); });
+    $('codeL').innerHTML=Lp; $('codeG').innerHTML=Gp; $('codeR').innerHTML=Rp; CURACTS=[]; CMAP=cmp; drawCodeMap(); return;
+  }
   var ops=diffLines(e.current||[], e.source||[]); var acts=[]; var L='',G='',R='', cmap=[];
   var ei=editInfo(e); var ci2=0;
   ops.forEach(function(o){
@@ -364,10 +361,15 @@ function deriveSource(base,seed){
 }
 var POST0=dataToSource(); POSTS[0].data=POST0;
 for(var _pi=1;_pi<POSTS.length;_pi++) POSTS[_pi].data=deriveSource(POST0,_pi);
+function hasImport(){ return curPost>=0; }
+// стартовое состояние: пост не выбран → показываем ТОЛЬКО current (правый), source пуст
+(function(){ ['cmd','sub','obj'].forEach(function(t){
+  DATA[t]=(DATA[t]||[]).filter(function(e){return e.current!=null;}).map(function(e){return {name:e.name,source:null,current:e.current};});
+}); })();
 function renderPost(){
-  var nm=$('impName'), pa=$('postPath'), m=$('mainArea');
-  if(curPost<0){ pa.textContent=''; nm.textContent='Select a postprocessor…'; nm.classList.add('ph'); if(m) m.classList.add('no-post'); return; }
-  var p=POSTS[curPost]; pa.textContent=p.dir?p.dir+'\\':''; nm.textContent=p.name; nm.classList.remove('ph'); if(m) m.classList.remove('no-post');
+  var nm=$('impName'), pa=$('postPath');
+  if(curPost<0){ pa.textContent=''; nm.textContent='Select a postprocessor…'; nm.classList.add('ph'); return; }
+  var p=POSTS[curPost]; pa.textContent=p.dir?p.dir+'\\':''; nm.textContent=p.name; nm.classList.remove('ph');
 }
 function buildPostMenu(){ $('postMenu').innerHTML=POSTS.map(function(p,i){
   return '<div class="opt'+(i===curPost?' sel':'')+'" data-i="'+i+'"><span class="oname">'+esc(p.name)+'</span><span class="opath">'+esc(p.dir||'локальный файл')+'</span></div>';
@@ -423,6 +425,7 @@ $('codeMap').addEventListener('mousedown',function(e){ e.preventDefault();
 });
 
 $('listZone').addEventListener('click',function(ev){
+  if(ev.target.closest('.eb')){ ev.stopPropagation(); $('impFile').click(); return; }   // кнопка импорта в подсказке
   var row=ev.target.closest('.row'); if(!row) return; var n=row.getAttribute('data-n');
   var e=items().filter(function(x){return x.name===n;})[0]; if(!e) return;
   if(ev.target.closest('.limport')){ ev.stopPropagation(); e.current=(e.source||[]).slice(); e.mergedLines=(e.source||[]).slice(); e.merged=true; e.edited=false; e.touched=true; renderList(); renderCounts(); if(selName===n) renderCode(); return; }
@@ -459,7 +462,6 @@ $('tabs').addEventListener('click',function(e){ var t=e.target.closest('.tab'); 
 $('filters').addEventListener('click',function(e){ var b=e.target.closest('button'); if(!b) return; filter=b.dataset.f; Array.prototype.forEach.call(this.children,function(c){c.classList.toggle('on',c===b);}); renderList(); renderCounts(); });
 $('mergeAll').addEventListener('click',mergeAll);
 $('impBtn').addEventListener('click',function(e){ e.stopPropagation(); $('impFile').click(); });
-$('emptyImport').addEventListener('click',function(e){ e.stopPropagation(); $('impFile').click(); });
 $('impFile').addEventListener('change',function(){ var f=this.files&&this.files[0]; this.value=''; if(!f) return;
   var rd=new FileReader();
   rd.onload=function(){ var p=parseSppx(rd.result);
